@@ -1,0 +1,195 @@
+#!/usr/bin/env bash
+
+usage() {
+  echo "Valid commands for boot:"
+  echo ""
+  echo "controls tipd            run pd-ctl"
+  echo "controls csi             run seaweedfs csi driver"
+  echo "controls tikv            run tikv-ctl"
+  echo "mainnode tipd            start pd-server for tikv"
+  echo "mainnode weed            start seaweedfs master"
+  echo "metanode weed            start seaweedfs filer"
+  echo "metanode tikv            start tikv-server"
+  echo "datanode weed            start seaweedfs volume"
+  echo ""
+  echo "Use 'boot [command] [subcommand] --help' to learn more."
+}
+
+controls() {
+  case "$1" in
+    'tipd')
+      shift
+      pd-ctl "$@"
+    ;;
+    'csi')
+      shift
+      weed-csi "$@"
+    ;;
+    'tikv')
+      shift
+      tikv-ctl "$@"
+    ;;
+    *)
+      usage
+    ;;
+  esac
+}
+
+check_pd_connect() {
+  url=$1
+  retry=$2
+  interval=$3
+  echo -e "\\033[32m---> Waiting for other mainnode pd running...\\033[0m"
+  for ((i=1; i<=retry; i++))
+  do
+    failed=$(controls pd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
+    if [[ $failed -eq 0 ]]; then
+      echo true
+    fi
+    sleep "${interval}"s
+  done
+  echo false
+}
+
+mainnode() {
+  case "$1" in
+    'tipd')
+      shift
+      run_pd_server="pd-server"
+      for endpoint in $(echo "${DRYCC_STORAGE_TIPD_ENDPOINTS}" | tr "," "\n")
+      do
+        if [[ $(check_pd_connect "$endpoint" 10 1) == true ]]; then
+          run_pd_server="$run_pd_server --join $endpoint"
+          break
+        fi
+      done
+      $run_pd_server "$@"
+    ;;
+    'weed')
+      shift
+      setup_weed
+      weed master "$@"
+    ;;
+    *)
+      usage
+    ;;
+  esac
+}
+
+metanode() {
+  case "$1" in
+    'weed')
+      shift
+      setup_weed
+      setup_filer
+      weed filer -s3 -s3.config /etc/seaweedfs/s3.json "$@"
+    ;;
+    'tikv')
+      shift
+      tikv-server "$@"
+    ;;
+    *)
+      usage
+    ;;
+  esac
+}
+
+datanode() {
+  case "$1" in
+    'weed')
+      shift
+      setup_weed
+      weed volume "$@"
+    ;;
+    *)
+      usage
+    ;;
+  esac
+}
+
+setup_weed() {
+  if [ -z "${DRYCC_STORAGE_JWT}" ]; then
+    echo '[ERROR] ' "DRYCC_STORAGE_JWT env required." >&2
+    exit 1
+  fi
+  cat << EOF > "/etc/seaweedfs/security.toml"
+[jwt.signing]
+key = "${DRYCC_STORAGE_JWT}"
+expires_after_seconds = 10           # seconds
+[access]
+ui = false
+[jwt.signing.read]
+key = "${DRYCC_STORAGE_JWT}"
+expires_after_seconds = 10           # seconds
+[jwt.filer_signing]
+key = "${DRYCC_STORAGE_JWT}"
+expires_after_seconds = 10           # seconds
+[jwt.filer_signing.read]
+key = "${DRYCC_STORAGE_JWT}"
+expires_after_seconds = 10           # seconds
+EOF
+}
+
+setup_filer() {
+  if [ -z "${DRYCC_STORAGE_ACCESSKEY}" ]; then
+    echo '[ERROR] ' "DRYCC_STORAGE_ACCESSKEY env required." >&2
+    exit 1
+  fi
+  if [ -z "${DRYCC_STORAGE_SECRETKEY}" ]; then
+    echo '[ERROR] ' "DRYCC_STORAGE_SECRETKEY env required." >&2
+    exit 1
+  fi
+  if [ -z "${DRYCC_STORAGE_TIPD_ENDPOINTS}" ]; then
+    echo '[ERROR] ' "DRYCC_STORAGE_TIPD_ENDPOINTS env required." >&2
+    exit 1
+  fi
+  cat << EOF > "/etc/seaweedfs/filer.toml"
+[tikv]
+enabled = true
+pdaddrs = "${DRYCC_STORAGE_TIPD_ENDPOINTS}"
+deleterange_concurrency = 1
+enable_1pc = false
+EOF
+  cat << EOF > "/etc/seaweedfs/s3.json"
+{
+  "identities": [
+    {
+      "name": "drycc",
+      "credentials": [
+        {
+          "accessKey": "${DRYCC_STORAGE_ACCESSKEY}",
+          "secretKey": "${DRYCC_STORAGE_SECRETKEY}"
+        }
+      ],
+      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+    }
+  ]
+}
+EOF
+}
+
+main() {
+  case "$1" in
+    'controls')
+      shift
+      controls "$@"
+    ;;
+    'mainnode')
+      shift
+      mainnode "$@"
+    ;;
+    'metanode')
+      shift
+      metanode "$@"
+    ;;
+    'datanode')
+      shift
+      datanode "$@"
+    ;;
+    *)
+      usage
+    ;;
+  esac
+}
+
+main "$@"

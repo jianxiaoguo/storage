@@ -1,0 +1,119 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+{{- $clusterDomain := .Values.global.clusterDomain }}
+kind: DaemonSet
+apiVersion: apps/v1
+metadata:
+  name: drycc-storage-csi-node
+spec:
+  selector:
+    matchLabels:
+      app: drycc-storage-csi-node
+  updateStrategy:
+    rollingUpdate:
+      maxUnavailable: 25%
+    type: RollingUpdate
+  template:
+    metadata:
+      labels:
+        app: drycc-storage-csi-node
+    spec:
+      priorityClassName: system-node-critical
+      serviceAccountName: drycc-storage-csi
+      initContainers:
+        - command:
+          - /bin/bash
+          - -ec
+          - |
+            chown -R 1001:1001 /csi
+          image: registry.uucin.com/drycc/base:bullseye
+          imagePullPolicy: IfNotPresent
+          name: volume-permissions
+          resources: {}
+          securityContext:
+            runAsUser: 0
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi/
+      containers:
+        - name:  drycc-storage-csi-node-registrar
+          image:  {{ .Values.csi.daemonset.registrarImage }}
+          imagePullPolicy: IfNotPresent
+          args:
+            - "--v=5"
+            - "--csi-address=/csi/csi.sock"
+            - "--kubelet-registration-path=/var/lib/kubelet/plugins/drycc-storage-csi/csi.sock"
+          env:
+            - name: KUBE_NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi/
+            - name: registration-dir
+              mountPath: /registration/
+        - name: drycc-storage-csi-node-plugin
+          securityContext:
+            privileged: true
+            capabilities:
+              add: ["SYS_ADMIN"]
+            allowPrivilegeEscalation: true
+          image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+          imagePullPolicy: IfNotPresent
+          args :
+            - controls
+            - csi
+            - "--endpoint=unix:///csi/csi.sock"
+            - "--filer=drycc-storage-metanode.$(NAMESPACE).svc.{{ $clusterDomain }}:18888"
+            - "--nodeid=$(NODE_NAME)"
+          env:
+            - name: NODE_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: spec.nodeName
+            - name: NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: "DRYCC_STORAGE_CA"
+              value: /etc/drycc/storage/pki/ca.crt
+            - name: "DRYCC_STORAGE_CERT"
+              value: /etc/drycc/storage/pki/tls.crt
+            - name: "DRYCC_STORAGE_KEY"
+              value: /etc/drycc/storage/pki/tls.key
+            - name: "DRYCC_STORAGE_JWT"
+              valueFrom:
+                secretKeyRef:
+                  name: drycc-storage-creds
+                  key: jwtkey
+          volumeMounts:
+            - name: plugin-dir
+              mountPath: /csi
+            - name: pods-mount-dir
+              mountPath: /var/lib/kubelet/pods
+              mountPropagation: "Bidirectional"
+            - mountPath: /dev
+              name: device-dir
+            - name: certs
+              mountPath: /etc/drycc/storage/pki/
+              readOnly: true
+      volumes:
+        - name: registration-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins_registry/
+            type: DirectoryOrCreate
+        - name: plugin-dir
+          hostPath:
+            path: /var/lib/kubelet/plugins/drycc-storage-csi
+            type: DirectoryOrCreate
+        - name: pods-mount-dir
+          hostPath:
+            path: /var/lib/kubelet/pods
+            type: Directory
+        - name: device-dir
+          hostPath:
+            path: /dev
+        - name: certs
+          secret:
+            secretName: drycc-storage-creds
+{{- end }}

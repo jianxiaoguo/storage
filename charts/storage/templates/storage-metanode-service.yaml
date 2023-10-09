@@ -1,0 +1,38 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: drycc-storage-metanode
+  annotations:
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    heritage: drycc
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: drycc-storage-metanode
+  ports:
+    - name: filer-http
+      port: 8888
+      targetPort: 8888
+      protocol: TCP
+    - name: filer-grpc
+      port: 18888
+      targetPort: 18888
+      protocol: TCP
+    - name: metrics
+      port: 9326
+      targetPort: 9326
+      protocol: TCP
+    - name: advertise-addr
+      port: 20160
+      targetPort: 20160
+      protocol: TCP
+    - name: advertise-status
+      port: 20180
+      targetPort: 20180
+      protocol: TCP
+{{- end }}

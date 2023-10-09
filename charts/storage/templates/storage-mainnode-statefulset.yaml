@@ -1,0 +1,165 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+{{- $replicaCount := int .Values.mainnode.replicas }}
+{{- $clusterDomain := .Values.global.clusterDomain }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: drycc-storage-mainnode
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
+spec:
+  serviceName: drycc-storage-mainnode
+  replicas: {{ $replicaCount }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: drycc-storage-mainnode
+  template:
+    metadata:
+      labels:
+        app: drycc-storage-mainnode
+    spec:
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mainnode.nodeAffinityPreset.type "key" .Values.mainnode.nodeAffinityPreset.key "values" .Values.mainnode.nodeAffinityPreset.values ) | nindent 10 }}
+      serviceAccount: drycc-storage
+      containers:
+      - name: drycc-storage-mainnode-tipd
+        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - mainnode
+        - tipd
+        - --name=$(POD_NAME)
+        - --data-dir=/data
+        - --client-urls=http://0.0.0.0:2379
+        - --peer-urls=http://0.0.0.0:2380
+        - --advertise-client-urls=http://$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}:2379
+        - --advertise-peer-urls=http://$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}:2380
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_STORAGE_JWT
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: jwtkey
+        - name: DRYCC_STORAGE_TIPD_ENDPOINTS
+          value: {{ include "mainnode.tipdUrls" . }}
+        ports:
+        - containerPort: 2379
+        - containerPort: 2380
+        livenessProbe:
+          tcpSocket:
+            port: 2380
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 2379
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        {{- if .Values.mainnode.persistence.enabled }}
+        volumeMounts:
+        - name: storage-mainnode
+          mountPath: /data
+          subPath: pd
+        {{- end }}
+      - name: drycc-storage-mainnode-weed
+        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - mainnode
+        - weed
+        - -mdir=/data
+        - -ip=$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}
+        - -port=9333
+        - -peers={{ include "mainnode.weedUrls" . }}
+        - -metricsPort=9324
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: "DRYCC_STORAGE_JWT"
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: jwtkey
+        ports:
+        - containerPort: 9333
+        - containerPort: 19333
+        - containerPort: 9324
+        livenessProbe:
+          tcpSocket:
+            port: 9333
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 9333
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        {{- if .Values.mainnode.persistence.enabled }}
+        volumeMounts:
+        - name: storage-mainnode
+          mountPath: /data
+          subPath: weed
+        {{- end }}
+      securityContext:
+        fsGroup: 1001
+        runAsGroup: 1001
+        runAsUser: 1001
+  {{- if .Values.mainnode.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: storage-mainnode
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.mainnode.persistence.storageClass }}
+      {{- if (eq "-" .Values.mainnode.persistence.storageClass) }}
+      storageClassName: ""
+      {{- else }}
+      storageClassName: "{{ .Values.mainnode.persistence.storageClass }}"
+      {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.mainnode.persistence.size | quote }}
+  {{- end }}
+{{- end }}

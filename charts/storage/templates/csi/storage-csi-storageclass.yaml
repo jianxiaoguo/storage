@@ -1,0 +1,9 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: drycc-storage
+  annotations:
+provisioner: drycc-storage-csi
+allowVolumeExpansion: true
+{{- end }}

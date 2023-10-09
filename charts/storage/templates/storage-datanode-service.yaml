@@ -1,0 +1,30 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: drycc-storage-datanode
+  annotations:
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    heritage: drycc
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: drycc-storage-datanode
+  ports:
+    - name: volume-http
+      port: 8080
+      targetPort: 8080
+      protocol: TCP
+    - name: volume-grpc
+      port: 18080
+      targetPort: 18080
+      protocol: TCP
+    - name: metrics
+      port: 9325
+      targetPort: 9325
+      protocol: TCP
+{{- end }}

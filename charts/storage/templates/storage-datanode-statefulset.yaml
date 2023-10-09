@@ -1,0 +1,121 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+{{- $replicaCount := int .Values.datanode.replicas }}
+{{- $clusterDomain := .Values.global.clusterDomain }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: drycc-storage-datanode
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
+spec:
+  serviceName: drycc-storage-datanode
+  replicas: {{ $replicaCount }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: OrderedReady
+  selector:
+    matchLabels:
+      app: drycc-storage-datanode
+  template:
+    metadata:
+      labels:
+        app: drycc-storage-datanode
+    spec:
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.datanode.nodeAffinityPreset.type "key" .Values.datanode.nodeAffinityPreset.key "values" .Values.datanode.nodeAffinityPreset.values ) | nindent 10 }}
+      serviceAccount: drycc-storage
+      initContainers:
+      - name: drycc-storage-datanode-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - netcat
+        - -v
+        - -a
+        - {{ include "mainnode.weedUrls" . }}
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      containers:
+      - name: drycc-storage-datanode-weed
+        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - datanode
+        - weed
+        - -max=100
+        - -mserver={{ include "mainnode.weedUrls" . }}
+        - -dir=/data
+        - -metricsPort=9325
+        env:
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_STORAGE_JWT
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: jwtkey
+        ports:
+        - containerPort: 8080
+        - containerPort: 18080
+        - containerPort: 9325
+        livenessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 8080
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        {{- if .Values.datanode.persistence.enabled }}
+        volumeMounts:
+        - name: storage-datanode
+          mountPath: /data
+          subPath: weed
+        {{- end }}
+      securityContext:
+        fsGroup: 1001
+        runAsGroup: 1001
+        runAsUser: 1001
+  {{- if .Values.datanode.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: storage-datanode
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.datanode.persistence.storageClass }}
+      {{- if (eq "-" .Values.datanode.persistence.storageClass) }}
+      storageClassName: ""
+      {{- else }}
+      storageClassName: "{{ .Values.datanode.persistence.storageClass }}"
+      {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.datanode.persistence.size | quote }}
+  {{- end }}
+{{- end }}
