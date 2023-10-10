@@ -93,7 +93,7 @@ function main {
   echo -e "\\033[32m---> S3 service ${S3_IP}:8333 ready...\\033[0m"
   # mc client
   echo -e "\\033[32m---> Downloading mc client...\\033[0m"
-  curl -sfL https://dl.min.io/client/mc/release/linux-amd64/mc -o ${S3_CLIENT}
+  curl -sfL https://dl.min.io/client/mc/release/linux-$(dpkg --print-architecture)/mc -o ${S3_CLIENT}
   chmod +x ${S3_CLIENT}
   ${S3_CLIENT} --config-dir /tmp/.mc config host add storage ${S3_ENDPOINT} ${DRYCC_STORAGE_ACCESSKEY} ${DRYCC_STORAGE_SECRETKEY} --lookup path --api s3v4
   ${S3_CLIENT} --config-dir /tmp/.mc cp ${BASE_DIR}/README.md storage/test

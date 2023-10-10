@@ -3,19 +3,6 @@ imagePullPolicy: "Always"
 imageTag: "canary"
 imageRegistry: "registry.drycc.cc"
 
-# The following parameters are configured only when using an on-cluster storage instance
-nodeAffinityPreset:
-  key: "drycc.cc/node"
-  type: "soft"
-  values:
-  - "true"
-
-podAffinityPreset:
-  key: "security"
-  type: ""
-  values:
-  - "drycc-security"
-
 # drycc storage csi driver
 csi:
   nodeAffinityPreset:
@@ -39,7 +26,7 @@ csi:
     attacherImage: registry.drycc.cc/k8s/sig-storage/csi-attacher:v3.4.0
     provisionerImage: registry.drycc.cc/k8s/sig-storage/csi-provisioner:v3.1.0
 
-# mainnode seaweedfs master & pd
+# mainnode seaweedfs master & tipd
 mainnode:
   replicas: 3
   nodeAffinityPreset:
@@ -111,12 +98,10 @@ service:
   annotations: {}
 
 global:
-  # Please check `kubernetes.io/ingress.class`
-  # The cert-manager component must be installed
-  # If you want to use HTTPSEnforced or allowlist functions, you must specify:
-  # - nginx
-  # - traefik
-  # Only the above options have been supported so far
+  # A domain name consists of one or more parts.
+  # Periods (.) are used to separate these parts.
+  # Each part must be 1 to 63 characters in length and can contain lowercase letters, digits, and hyphens (-).
+  # It must start and end with a lowercase letter or digit.
   clusterDomain: "cluster.local"
   # Set the location of Workflow's Object Storage
   #

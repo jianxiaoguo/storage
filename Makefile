@@ -14,7 +14,7 @@ include versioning.mk
 
 all: podman-build podman-push
 
-test: test-style
+test: test-style podman-build
 	_tests/test.sh
 
 test-style:
