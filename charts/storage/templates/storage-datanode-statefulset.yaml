@@ -50,10 +50,31 @@ spec:
         - datanode
         - weed
         - -max=100
+        - -rack=$(RACK)
+        - -dataCenter=$(DATA_CENTER)
         - -mserver={{ include "mainnode.weedUrls" . }}
-        - -dir=/data
+        {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
+        - -disk=hdd,ssd
+        - -dir=/data/hdd,/data/ssd
+        {{- else if .Values.datanode.persistence.ssd.enabled }}
+        - -disk=ssd
+        - -dir=/data/ssd
+        {{- else }}
+        - -disk=hdd
+        - -dir=/data/hdd
+        {{- end }}
         - -metricsPort=9325
         env:
+        - name: TZ
+          value: UTC
+        - name: RACK
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['topology.kubernetes.io/rack']
+        - name: DATA_CENTER
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.labels['topology.kubernetes.io/zone']
         - name: POD_IP
           valueFrom:
             fieldRef:
@@ -91,31 +112,54 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        {{- if .Values.datanode.persistence.enabled }}
+        {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
         volumeMounts:
-        - name: storage-datanode
-          mountPath: /data
-          subPath: weed
+        {{- if .Values.datanode.persistence.hdd.enabled }}
+        - name: storage-datanode-hdd
+          mountPath: /data/hdd
+        {{- end }}
+        {{- if .Values.datanode.persistence.ssd.enabled }}
+        - name: storage-datanode-ssd
+          mountPath: /data/ssd
+        {{- end }}
         {{- end }}
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
         runAsUser: 1001
-  {{- if .Values.datanode.persistence.enabled }}
+  {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
   volumeClaimTemplates:
+  {{- if .Values.datanode.persistence.hdd.enabled }}
   - metadata:
-      name: storage-datanode
+      name: storage-datanode-hdd
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.datanode.persistence.storageClass }}
-      {{- if (eq "-" .Values.datanode.persistence.storageClass) }}
+      {{- if .Values.datanode.persistence.hdd.storageClass }}
+      {{- if (eq "-" .Values.datanode.persistence.hdd.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.datanode.persistence.storageClass }}"
+      storageClassName: "{{ .Values.datanode.persistence.hdd.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.datanode.persistence.size | quote }}
+          storage: {{ .Values.datanode.persistence.hdd.size | quote }}
+  {{- end }}
+  {{- if .Values.datanode.persistence.ssd.enabled }}
+  - metadata:
+      name: storage-datanode-ssd
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.datanode.persistence.ssd.storageClass }}
+      {{- if (eq "-" .Values.datanode.persistence.ssd.storageClass) }}
+      storageClassName: ""
+      {{- else }}
+      storageClassName: "{{ .Values.datanode.persistence.ssd.storageClass }}"
+      {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.datanode.persistence.ssd.size | quote }}
+  {{- end }}
   {{- end }}
 {{- end }}

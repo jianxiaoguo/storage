@@ -56,6 +56,8 @@ spec:
         - --advertise-status-addr=$(POD_NAME).drycc-storage-metanode.$(NAMESPACE).{{ $clusterDomain }}:20180
         - --data-dir=/data
         env:
+        - name: TZ
+          value: UTC
         - name: POD_IP
           valueFrom:
             fieldRef:
@@ -105,9 +107,12 @@ spec:
         - metanode
         - weed
         - -master={{ include "mainnode.weedUrls" . }}
+        - -s3.port=8333
         - -defaultStoreDir=/data
         - -metricsPort=9326
         env:
+        - name: TZ
+          value: UTC
         - name: POD_IP
           valueFrom:
             fieldRef:
@@ -138,9 +143,10 @@ spec:
         - name: DRYCC_STORAGE_TIPD_ENDPOINTS
           value: {{ include "mainnode.tipdUrls" . }}
         ports:
-          - containerPort: 8888
-          - containerPort: 18888
-          - containerPort: 9326
+        - containerPort: 8333
+        - containerPort: 8888
+        - containerPort: 9326
+        - containerPort: 18888
         livenessProbe:
           tcpSocket:
             port: 8888

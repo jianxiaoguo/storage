@@ -14,7 +14,7 @@
 {{- $clusterDomain := .Values.global.clusterDomain }}
 {{- $messages := list -}}
 {{ range $i := until $replicaCount }}
-  {{- $messages = printf "https://drycc-storage-mainnode-%d.drycc-storage-mainnode.$(NAMESPACE).svc.%s:2379" $i $clusterDomain | append $messages -}}
+  {{- $messages = printf "http://drycc-storage-mainnode-%d.drycc-storage-mainnode.$(NAMESPACE).svc.%s:2379" $i $clusterDomain | append $messages -}}
 {{ end }}
 {{- $message := join "," $messages -}}
 {{- printf "%s" $message }}

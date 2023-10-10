@@ -15,7 +15,7 @@ RUN groupadd drycc --gid ${DRYCC_GID} \
   && install-stack jq $JQ_VERSION \
   && install-stack tikv $TIKV_VERSION \
   && install-stack seaweedfs $SEAWEEDFS_VERSION \
-  && mkdir -p ${SEAWEEDFS_DATA_DIR} ${SEAWEEDFS_CONF_DIR} \
+  && mkdir -p ${SEAWEEDFS_DATA_DIR}/{ssd,hdd} ${SEAWEEDFS_CONF_DIR} \
   && chown -hR ${DRYCC_UID}:${DRYCC_GID} ${SEAWEEDFS_CONF_DIR} \
   && chown -hR ${DRYCC_UID}:${DRYCC_GID} ${SEAWEEDFS_DATA_DIR}
 

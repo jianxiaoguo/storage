@@ -88,9 +88,14 @@ datanode:
       app: "drycc-storage-datanode"
   # persistence config
   persistence:
-    enabled: false
-    size: 5Gi
-    storageClass: ""
+    ssd:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
+    hdd:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
 
 # Service
 service:

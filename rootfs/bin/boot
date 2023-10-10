@@ -42,13 +42,13 @@ check_pd_connect() {
   echo -e "\\033[32m---> Waiting for other mainnode pd running...\\033[0m"
   for ((i=1; i<=retry; i++))
   do
-    failed=$(controls pd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
+    failed=$(controls tipd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
     if [[ $failed -eq 0 ]]; then
-      echo true
+      return 0
     fi
     sleep "${interval}"s
   done
-  echo false
+  return 100
 }
 
 mainnode() {
@@ -58,7 +58,7 @@ mainnode() {
       run_pd_server="pd-server"
       for endpoint in $(echo "${DRYCC_STORAGE_TIPD_ENDPOINTS}" | tr "," "\n")
       do
-        if [[ $(check_pd_connect "$endpoint" 10 1) == true ]]; then
+        if check_pd_connect "$endpoint" 10 1; then
           run_pd_server="$run_pd_server --join $endpoint"
           break
         fi

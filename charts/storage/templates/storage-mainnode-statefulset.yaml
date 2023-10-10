@@ -42,6 +42,8 @@ spec:
         - --advertise-client-urls=http://$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}:2379
         - --advertise-peer-urls=http://$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}:2380
         env:
+        - name: TZ
+          value: UTC
         - name: POD_IP
           valueFrom:
             fieldRef:
@@ -98,6 +100,8 @@ spec:
         - -peers={{ include "mainnode.weedUrls" . }}
         - -metricsPort=9324
         env:
+        - name: TZ
+          value: UTC
         - name: POD_IP
           valueFrom:
             fieldRef:
