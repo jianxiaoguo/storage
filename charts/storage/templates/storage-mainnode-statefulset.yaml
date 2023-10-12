@@ -36,7 +36,7 @@ spec:
         - mainnode
         - tipd
         - --name=$(POD_NAME)
-        - --data-dir=/data
+        - --data-dir=/data/tipd
         - --client-urls=http://0.0.0.0:2379
         - --peer-urls=http://0.0.0.0:2380
         - --advertise-client-urls=http://$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}:2379
@@ -86,7 +86,6 @@ spec:
         volumeMounts:
         - name: storage-mainnode
           mountPath: /data
-          subPath: pd
         {{- end }}
       - name: drycc-storage-mainnode-weed
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
@@ -94,7 +93,7 @@ spec:
         args:
         - mainnode
         - weed
-        - -mdir=/data
+        - -mdir=/data/weed
         - -ip=$(POD_NAME).drycc-storage-mainnode.$(NAMESPACE).svc.{{ $clusterDomain }}
         - -port=9333
         - -peers={{ include "mainnode.weedUrls" . }}
@@ -143,7 +142,6 @@ spec:
         volumeMounts:
         - name: storage-mainnode
           mountPath: /data
-          subPath: weed
         {{- end }}
       securityContext:
         fsGroup: 1001

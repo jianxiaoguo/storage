@@ -54,7 +54,7 @@ spec:
         - --status-addr=0.0.0.0:20180
         - --advertise-addr=$(POD_NAME).drycc-storage-metanode.$(NAMESPACE).svc.{{ $clusterDomain }}:20160
         - --advertise-status-addr=$(POD_NAME).drycc-storage-metanode.$(NAMESPACE).{{ $clusterDomain }}:20180
-        - --data-dir=/data
+        - --data-dir=/data/tikv
         env:
         - name: TZ
           value: UTC
@@ -98,7 +98,6 @@ spec:
         {{- if .Values.metanode.persistence.enabled }}
         - name: storage-metanode
           mountPath: /data
-          subPath: tikv
         {{- end }}
       - name: drycc-storage-metanode-weed
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
@@ -108,7 +107,7 @@ spec:
         - weed
         - -master={{ include "mainnode.weedUrls" . }}
         - -s3.port=8333
-        - -defaultStoreDir=/data
+        - -defaultStoreDir=/data/weed
         - -metricsPort=9326
         env:
         - name: TZ
@@ -167,7 +166,6 @@ spec:
         volumeMounts:
         - name: storage-metanode
           mountPath: /data
-          subPath: weed
         {{- end }}
       securityContext:
         fsGroup: 1001
