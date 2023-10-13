@@ -2,8 +2,11 @@
 apiVersion: v1
 kind: Service
 metadata:
-  name: drycc-storage-metanode
+  name: drycc-storage-metanode-tikv
   annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "20180"
+    prometheus.io/scrape: "true"
     {{- with .Values.service.annotations }}
     {{- toYaml . | nindent 4 }}
     {{- end }}
@@ -13,29 +16,13 @@ spec:
   clusterIP: None
   publishNotReadyAddresses: true
   selector:
-    app: drycc-storage-metanode
+    app: drycc-storage-metanode-tikv
   ports:
-  - name: filer-s3
-    port: 8333
-    targetPort: 8333
-    protocol: TCP
-  - name: filer-http
-    port: 8888
-    targetPort: 8888
-    protocol: TCP
-  - name: filer-grpc
-    port: 18888
-    targetPort: 18888
-    protocol: TCP
-  - name: metrics
-    port: 9326
-    targetPort: 9326
-    protocol: TCP
-  - name: advertise-addr
+  - name: addr
     port: 20160
     targetPort: 20160
     protocol: TCP
-  - name: advertise-status
+  - name: status
     port: 20180
     targetPort: 20180
     protocol: TCP

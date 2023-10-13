@@ -4,24 +4,24 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: drycc-storage-metanode
+  name: drycc-storage-metanode-tikv
   labels:
     heritage: drycc
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  serviceName: drycc-storage-metanode
+  serviceName: drycc-storage-metanode-tikv
   replicas: {{ $replicaCount }}
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: Parallel
   selector:
     matchLabels:
-      app: drycc-storage-metanode
+      app: drycc-storage-metanode-tikv
   template:
     metadata:
       labels:
-        app: drycc-storage-metanode
+        app: drycc-storage-metanode-tikv
     spec:
       affinity:
         podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
@@ -29,14 +29,14 @@ spec:
         nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.metanode.nodeAffinityPreset.type "key" .Values.metanode.nodeAffinityPreset.key "values" .Values.metanode.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       initContainers:
-      - name: drycc-storage-metanode-init
+      - name: drycc-storage-metanode-weed-init
         image: registry.drycc.cc/drycc/python-dev:latest
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         args:
         - netcat
         - -v
-        - -a
-        - {{ include "mainnode.weedUrls" . }}
+        - -u
+        - {{ include "mainnode.tipdUrls" . }}
         env:
         - name: NAMESPACE
           valueFrom:
@@ -52,9 +52,9 @@ spec:
         - --pd-endpoints={{ include "mainnode.tipdUrls" . }}
         - --addr=0.0.0.0:20160
         - --status-addr=0.0.0.0:20180
-        - --advertise-addr=$(POD_NAME).drycc-storage-metanode.$(NAMESPACE).svc.{{ $clusterDomain }}:20160
-        - --advertise-status-addr=$(POD_NAME).drycc-storage-metanode.$(NAMESPACE).{{ $clusterDomain }}:20180
-        - --data-dir=/data/tikv
+        - --advertise-addr=$(POD_NAME).drycc-storage-metanode-tikv.$(NAMESPACE).svc.{{ $clusterDomain }}:20160
+        - --advertise-status-addr=$(POD_NAME).drycc-storage-metanode-tikv.$(NAMESPACE).{{ $clusterDomain }}:20180
+        - --data-dir=/data
         env:
         - name: TZ
           value: UTC
@@ -78,6 +78,15 @@ spec:
         ports:
         - containerPort: 20160
         - containerPort: 20180
+        startupProbe:
+          httpGet:
+            path: /metrics
+            port: 20180
+          initialDelaySeconds: 90
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
         livenessProbe:
           tcpSocket:
             port: 20160
@@ -89,82 +98,14 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 20180
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 1
-          successThreshold: 1
-          failureThreshold: 5
-        volumeMounts:
-        {{- if .Values.metanode.persistence.enabled }}
-        - name: storage-metanode
-          mountPath: /data
-        {{- end }}
-      - name: drycc-storage-metanode-weed
-        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
-        imagePullPolicy: {{ .Values.imagePullPolicy }}
-        args:
-        - metanode
-        - weed
-        - -master={{ include "mainnode.weedUrls" . }}
-        - -s3.port=8333
-        - -defaultStoreDir=/data/weed
-        - -metricsPort=9326
-        env:
-        - name: TZ
-          value: UTC
-        - name: POD_IP
-          valueFrom:
-            fieldRef:
-              fieldPath: status.podIP
-        - name: POD_NAME
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.name
-        - name: NAMESPACE
-          valueFrom:
-            fieldRef:
-              fieldPath: metadata.namespace
-        - name: DRYCC_STORAGE_JWT
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
-        - name: DRYCC_STORAGE_ACCESSKEY
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: accesskey
-        - name: DRYCC_STORAGE_SECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: secretkey
-        - name: DRYCC_STORAGE_TIPD_ENDPOINTS
-          value: {{ include "mainnode.tipdUrls" . }}
-        ports:
-        - containerPort: 8333
-        - containerPort: 8888
-        - containerPort: 9326
-        - containerPort: 18888
-        livenessProbe:
-          tcpSocket:
-            port: 8888
           initialDelaySeconds: 30
           periodSeconds: 5
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        readinessProbe:
-          tcpSocket:
-            port: 8888
-          initialDelaySeconds: 5
-          periodSeconds: 5
-          timeoutSeconds: 1
-          successThreshold: 1
-          failureThreshold: 5
-        {{- if .Values.metanode.persistence.enabled }}
         volumeMounts:
-        - name: storage-metanode
+        {{- if .Values.metanode.persistence.enabled }}
+        - name: storage-metanode-tikv
           mountPath: /data
         {{- end }}
       securityContext:
@@ -174,7 +115,7 @@ spec:
   {{- if .Values.metanode.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
-      name: storage-metanode
+      name: storage-metanode-tikv
     spec:
       accessModes: [ "ReadWriteOnce" ]
       {{- if .Values.metanode.persistence.storageClass }}

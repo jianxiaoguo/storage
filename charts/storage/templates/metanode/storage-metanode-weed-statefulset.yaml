@@ -1,0 +1,144 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+{{- $replicaCount := int .Values.metanode.replicas }}
+{{- $clusterDomain := .Values.global.clusterDomain }}
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: drycc-storage-metanode-weed
+  labels:
+    heritage: drycc
+  annotations:
+    component.drycc.cc/version: {{ .Values.imageTag }}
+spec:
+  serviceName: drycc-storage-metanode-weed
+  replicas: {{ $replicaCount }}
+  updateStrategy:
+    type: RollingUpdate
+  podManagementPolicy: Parallel
+  selector:
+    matchLabels:
+      app: drycc-storage-metanode-weed
+  template:
+    metadata:
+      labels:
+        app: drycc-storage-metanode-weed
+    spec:
+      affinity:
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.metanode.nodeAffinityPreset.type "key" .Values.metanode.nodeAffinityPreset.key "values" .Values.metanode.nodeAffinityPreset.values ) | nindent 10 }}
+      serviceAccount: drycc-storage
+      initContainers:
+      - name: drycc-storage-metanode-weed-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - netcat
+        - -v
+        - -a
+        - {{ include "mainnode.weedUrls" . }}
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+      containers:
+      - name: drycc-storage-metanode-weed
+        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - metanode
+        - weed
+        - -master={{ include "mainnode.weedUrls" . }}
+        - -s3.port=8333
+        - -defaultStoreDir=/data
+        - -metricsPort=9326
+        env:
+        - name: TZ
+          value: UTC
+        - name: POD_IP
+          valueFrom:
+            fieldRef:
+              fieldPath: status.podIP
+        - name: POD_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.name
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        - name: DRYCC_STORAGE_JWT
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: jwtkey
+        - name: DRYCC_STORAGE_ACCESSKEY
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: accesskey
+        - name: DRYCC_STORAGE_SECRETKEY
+          valueFrom:
+            secretKeyRef:
+              name: drycc-storage-creds
+              key: secretkey
+        - name: DRYCC_STORAGE_TIPD_ENDPOINTS
+          value: {{ include "mainnode.tipdUrls" . }}
+        ports:
+        - containerPort: 8333
+        - containerPort: 8888
+        - containerPort: 9326
+        - containerPort: 18888
+        startupProbe:
+          httpGet:
+            path: /metrics
+            port: 9326
+          initialDelaySeconds: 90
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        livenessProbe:
+          tcpSocket:
+            port: 8333
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        readinessProbe:
+          tcpSocket:
+            port: 8333
+          initialDelaySeconds: 30
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
+        {{- if .Values.metanode.persistence.enabled }}
+        volumeMounts:
+        - name: storage-metanode-weed
+          mountPath: /data
+        {{- end }}
+      securityContext:
+        fsGroup: 1001
+        runAsGroup: 1001
+        runAsUser: 1001
+  {{- if .Values.metanode.persistence.enabled }}
+  volumeClaimTemplates:
+  - metadata:
+      name: storage-metanode-weed
+    spec:
+      accessModes: [ "ReadWriteOnce" ]
+      {{- if .Values.metanode.persistence.storageClass }}
+      {{- if (eq "-" .Values.metanode.persistence.storageClass) }}
+      storageClassName: ""
+      {{- else }}
+      storageClassName: "{{ .Values.metanode.persistence.storageClass }}"
+      {{- end }}
+      {{- end }}
+      resources:
+        requests:
+          storage: {{ .Values.metanode.persistence.size | quote }}
+  {{- end }}
+{{- end }}

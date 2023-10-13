@@ -1,0 +1,29 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: drycc-storage-mainnode-tipd
+  annotations:
+    prometheus.io/path: /metrics
+    prometheus.io/port: "2379"
+    prometheus.io/scrape: "true"
+    {{- with .Values.service.annotations }}
+    {{- toYaml . | nindent 4 }}
+    {{- end }}
+  labels:
+    heritage: drycc
+spec:
+  clusterIP: None
+  publishNotReadyAddresses: true
+  selector:
+    app: drycc-storage-mainnode-tipd
+  ports:
+    - name: client
+      port: 2379
+      targetPort: 2379
+      protocol: TCP
+    - name: peer
+      port: 2380
+      targetPort: 2380
+      protocol: TCP
+{{- end }}

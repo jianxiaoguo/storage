@@ -4,24 +4,24 @@
 apiVersion: apps/v1
 kind: StatefulSet
 metadata:
-  name: drycc-storage-datanode
+  name: drycc-storage-datanode-weed
   labels:
     heritage: drycc
   annotations:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
-  serviceName: drycc-storage-datanode
+  serviceName: drycc-storage-datanode-weed
   replicas: {{ $replicaCount }}
   updateStrategy:
     type: RollingUpdate
   podManagementPolicy: OrderedReady
   selector:
     matchLabels:
-      app: drycc-storage-datanode
+      app: drycc-storage-datanode-weed
   template:
     metadata:
       labels:
-        app: drycc-storage-datanode
+        app: drycc-storage-datanode-weed
     spec:
       affinity:
         podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
@@ -29,7 +29,7 @@ spec:
         nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.datanode.nodeAffinityPreset.type "key" .Values.datanode.nodeAffinityPreset.key "values" .Values.datanode.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       initContainers:
-      - name: drycc-storage-datanode-init
+      - name: drycc-storage-datanode-weed-init
         image: registry.drycc.cc/drycc/python-dev:latest
         imagePullPolicy: {{ .Values.imagePullPolicy }}
         args:
@@ -96,6 +96,15 @@ spec:
         - containerPort: 8080
         - containerPort: 18080
         - containerPort: 9325
+        startupProbe:
+          httpGet:
+            path: /metrics
+            port: 9325
+          initialDelaySeconds: 90
+          periodSeconds: 5
+          timeoutSeconds: 1
+          successThreshold: 1
+          failureThreshold: 5
         livenessProbe:
           tcpSocket:
             port: 8080
@@ -107,7 +116,7 @@ spec:
         readinessProbe:
           tcpSocket:
             port: 8080
-          initialDelaySeconds: 5
+          initialDelaySeconds: 30
           periodSeconds: 5
           timeoutSeconds: 1
           successThreshold: 1
@@ -115,11 +124,11 @@ spec:
         {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
         volumeMounts:
         {{- if .Values.datanode.persistence.hdd.enabled }}
-        - name: storage-datanode-hdd
+        - name: storage-datanode-weed-hdd
           mountPath: /data/hdd
         {{- end }}
         {{- if .Values.datanode.persistence.ssd.enabled }}
-        - name: storage-datanode-ssd
+        - name: storage-datanode-weed-ssd
           mountPath: /data/ssd
         {{- end }}
         {{- end }}
@@ -131,7 +140,7 @@ spec:
   volumeClaimTemplates:
   {{- if .Values.datanode.persistence.hdd.enabled }}
   - metadata:
-      name: storage-datanode-hdd
+      name: storage-datanode-weed-hdd
     spec:
       accessModes: [ "ReadWriteOnce" ]
       {{- if .Values.datanode.persistence.hdd.storageClass }}
@@ -147,7 +156,7 @@ spec:
   {{- end }}
   {{- if .Values.datanode.persistence.ssd.enabled }}
   - metadata:
-      name: storage-datanode-ssd
+      name: storage-datanode-weed-ssd
     spec:
       accessModes: [ "ReadWriteOnce" ]
       {{- if .Values.datanode.persistence.ssd.storageClass }}

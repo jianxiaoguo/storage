@@ -5,13 +5,13 @@ DRYCC_STORAGE_ACCESSKEY=f4c4281665bc11ee8e0400163e04a9cd
 DRYCC_STORAGE_SECRETKEY=f4c4281665bc11ee8e0400163e04a9cd
 
 function start-test-mainnode() {
-  podman run -d --name test-logger-mainnode-tipd \
+  podman run -d --name test-storage-mainnode-tipd \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-mainnode-tipd.sh
 
-  podman run -d --name test-logger-mainnode-weed \
+  podman run -d --name test-storage-mainnode-weed \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
@@ -20,23 +20,23 @@ function start-test-mainnode() {
 
 # shellcheck disable=SC2317
 function stop-test-mainnode() {
-  podman kill test-logger-mainnode-tipd
-  podman kill test-logger-mainnode-weed
-  podman rm test-logger-mainnode-tipd
-  podman rm test-logger-mainnode-weed
+  podman kill test-storage-mainnode-tipd
+  podman kill test-storage-mainnode-weed
+  podman rm test-storage-mainnode-tipd
+  podman rm test-storage-mainnode-weed
 }
 
 function start-test-metanode() {
-  TIPD_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-logger-mainnode-tipd)
-  podman run -d --name test-logger-metanode-tikv \
+  TIPD_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-storage-mainnode-tipd)
+  podman run -d --name test-storage-metanode-tikv \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e DRYCC_STORAGE_TIPD_ENDPOINTS="http://${TIPD_IP}:2379" \
     -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-metanode-tikv.sh
 
-  WEED_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-logger-mainnode-weed)
-  podman run -d  --name test-logger-metanode-weed \
+  WEED_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-storage-mainnode-weed)
+  podman run -d  --name test-storage-metanode-weed \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e MASTER="${WEED_IP}:9333" \
@@ -49,15 +49,15 @@ function start-test-metanode() {
 
 # shellcheck disable=SC2317
 function stop-test-metanode() {
-  podman kill test-logger-metanode-tikv
-  podman kill test-logger-metanode-weed
-  podman rm test-logger-metanode-tikv
-  podman rm test-logger-metanode-weed
+  podman kill test-storage-metanode-tikv
+  podman kill test-storage-metanode-weed
+  podman rm test-storage-metanode-tikv
+  podman rm test-storage-metanode-weed
 }
 
 function start-test-datanode() {
-  WEED_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-logger-mainnode-weed)
-  podman run -d --name test-logger-datanode-weed \
+  WEED_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-storage-mainnode-weed)
+  podman run -d --name test-storage-datanode-weed \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e MSERVER="${WEED_IP}:9333" \
@@ -67,8 +67,8 @@ function start-test-datanode() {
 
 # shellcheck disable=SC2317
 function stop-test-datanode() {
-  podman kill test-logger-datanode-weed
-  podman rm test-logger-datanode-weed
+  podman kill test-storage-datanode-weed
+  podman rm test-storage-datanode-weed
 }
 
 # shellcheck disable=SC2317
@@ -84,7 +84,7 @@ function main {
   start-test-mainnode
   start-test-metanode
   start-test-datanode
-  S3_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-logger-metanode-weed)
+  S3_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-storage-metanode-weed)
   S3_ENDPOINT=http://${S3_IP}:8333
   # wait for port
   echo -e "\\033[32m---> Waitting for ${S3_IP}:8333\\033[0m"
