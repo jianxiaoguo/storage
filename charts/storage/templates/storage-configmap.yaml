@@ -1,0 +1,31 @@
+{{- if eq .Values.global.storageLocation "on-cluster" }}
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: storage-config
+  namespace: {{ .Release.Namespace }}
+  labels:
+    heritage: drycc
+data:
+  s3.json: |
+    {
+      "identities": [
+        {
+          "name": "drycc",
+          "credentials": [
+            {
+              "accessKey": "{{ include "storage.accesskey" . }}",
+              "secretKey": "{{ include "storage.secretkey" . }}"
+            }
+          ],
+          "actions": ["Admin", "Read", "List", "Tagging", "Write"]
+        }
+      ]
+    }
+  filer.toml: |
+    [tikv]
+    enabled = true
+    pdaddrs = "{{ include "mainnode.tipdUrls" . }}"
+    deleterange_concurrency = 1
+    enable_1pc = false
+{{- end }}

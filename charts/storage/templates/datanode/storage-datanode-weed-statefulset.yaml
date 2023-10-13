@@ -1,5 +1,5 @@
 {{- if eq .Values.global.storageLocation "on-cluster" }}
-{{- $replicaCount := int .Values.datanode.replicas }}
+{{- $replicaCount := int .Values.datanode.weed.replicas }}
 {{- $clusterDomain := .Values.global.clusterDomain }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -26,9 +26,9 @@ spec:
         app: drycc-storage-datanode-weed
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.datanode.nodeAffinityPreset.type "key" .Values.datanode.nodeAffinityPreset.key "values" .Values.datanode.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.weed.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.weed.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.datanode.weed.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.datanode.weed.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.datanode.weed.nodeAffinityPreset.type "key" .Values.datanode.weed.nodeAffinityPreset.key "values" .Values.datanode.weed.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       initContainers:
       - name: drycc-storage-datanode-weed-init
@@ -51,18 +51,19 @@ spec:
         args:
         - datanode
         - weed
+        - -port=8080
+        - -port.grpc=18080
         - -max=100
         - -rack=$(RACK)
         - -dataCenter=$(DATA_CENTER)
         - -mserver={{ include "mainnode.weedUrls" . }}
-        {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
+        {{- if and (.Values.datanode.weed.persistence.hdd.enabled) (.Values.datanode.weed.persistence.ssd.enabled) }}
         - -disk=hdd,ssd
         - -dir=/data/hdd,/data/ssd
-        {{- else if .Values.datanode.persistence.ssd.enabled }}
+        {{- else if .Values.datanode.weed.persistence.ssd.enabled }}
         - -disk=ssd
         - -dir=/data/ssd
         {{- else }}
-        - -disk=hdd
         - -dir=/data/hdd
         {{- end }}
         - -metricsPort=9325
@@ -89,11 +90,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: DRYCC_STORAGE_JWT
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
         ports:
         - containerPort: 8080
         - containerPort: 18080
@@ -123,54 +119,58 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
         volumeMounts:
-        {{- if .Values.datanode.persistence.hdd.enabled }}
+        - name: storage-config
+          mountPath: /etc/seaweedfs
+        {{- if .Values.datanode.weed.persistence.hdd.enabled }}
         - name: storage-datanode-weed-hdd
           mountPath: /data/hdd
         {{- end }}
-        {{- if .Values.datanode.persistence.ssd.enabled }}
+        {{- if .Values.datanode.weed.persistence.ssd.enabled }}
         - name: storage-datanode-weed-ssd
           mountPath: /data/ssd
         {{- end }}
-        {{- end }}
+      volumes:
+      - name: storage-config
+        configMap:
+          name: storage-config
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
         runAsUser: 1001
-  {{- if and (.Values.datanode.persistence.hdd.enabled) (.Values.datanode.persistence.ssd.enabled) }}
+  {{- if or (.Values.datanode.weed.persistence.hdd.enabled) (.Values.datanode.weed.persistence.ssd.enabled) }}
   volumeClaimTemplates:
-  {{- if .Values.datanode.persistence.hdd.enabled }}
+  {{- if .Values.datanode.weed.persistence.hdd.enabled }}
   - metadata:
       name: storage-datanode-weed-hdd
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.datanode.persistence.hdd.storageClass }}
-      {{- if (eq "-" .Values.datanode.persistence.hdd.storageClass) }}
+      {{- if .Values.datanode.weed.persistence.hdd.storageClass }}
+      {{- if (eq "-" .Values.datanode.weed.persistence.hdd.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.datanode.persistence.hdd.storageClass }}"
+      storageClassName: "{{ .Values.datanode.weed.persistence.hdd.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.datanode.persistence.hdd.size | quote }}
+          storage: {{ .Values.datanode.weed.persistence.hdd.size | quote }}
   {{- end }}
-  {{- if .Values.datanode.persistence.ssd.enabled }}
+  {{- if .Values.datanode.weed.persistence.ssd.enabled }}
   - metadata:
       name: storage-datanode-weed-ssd
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.datanode.persistence.ssd.storageClass }}
-      {{- if (eq "-" .Values.datanode.persistence.ssd.storageClass) }}
+      {{- if .Values.datanode.weed.persistence.ssd.storageClass }}
+      {{- if (eq "-" .Values.datanode.weed.persistence.ssd.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.datanode.persistence.ssd.storageClass }}"
+      storageClassName: "{{ .Values.datanode.weed.persistence.ssd.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.datanode.persistence.ssd.size | quote }}
+          storage: {{ .Values.datanode.weed.persistence.ssd.size | quote }}
   {{- end }}
   {{- end }}
 {{- end }}

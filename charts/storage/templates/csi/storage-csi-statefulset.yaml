@@ -7,91 +7,131 @@ metadata:
 spec:
   selector:
     matchLabels:
+      component: drycc-storage
       app: drycc-storage-csi-controller
   serviceName: drycc-storage-csi-controller
   replicas: {{ .Values.csi.statefulset.replicas }}
   template:
     metadata:
       labels:
+        component: drycc-storage
         app: drycc-storage-csi-controller
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.csi.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.csi.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.csi.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.csi.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.csi.nodeAffinityPreset.type "key" .Values.csi.nodeAffinityPreset.key "values" .Values.csi.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.csi.statefulset.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.csi.statefulset.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.csi.statefulset.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.csi.statefulset.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.csi.statefulset.nodeAffinityPreset.type "key" .Values.csi.statefulset.nodeAffinityPreset.key "values" .Values.csi.statefulset.nodeAffinityPreset.values ) | nindent 10 }}
       priorityClassName: system-cluster-critical
       serviceAccountName: drycc-storage-csi
+      initContainers:
+      - name: drycc-storage-datanode-weed-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - netcat
+        - -v
+        - -a
+        - drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
       containers:
-        - name: drycc-storage-csi-controller-provisioner
-          image: {{ .Values.csi.statefulset.provisionerImage }}
-          args:
-            - "--csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock"
-            - -v
-            - "9"
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
-        - name: drycc-storage-csi-controller-attacher
-          image: {{ .Values.csi.statefulset.attacherImage }}
-          args:
-            - "--v=5"
-            - "--csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock"
-            - "--timeout=120s"
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
-        # resizer
-        - name: drycc-storage-csi-controller-resizer
-          image: {{ .Values.csi.statefulset.resizerImage }}
-          args:
-            - "--v=5"
-            - "--csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock"
-            - "--leader-election=false"
-          imagePullPolicy: IfNotPresent
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
-        - name: drycc-storage-csi-controller-plugin
-          image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
-          imagePullPolicy: IfNotPresent
-          args:
-            - controls
-            - csi
-            - "--endpoint=unix:///var/lib/csi/sockets/pluginproxy/csi.sock"
-            - "--filer=drycc-storage-metanode.$(NAMESPACE).svc.{{ $clusterDomain }}:18888"
-            - "--nodeid=$(NODE_NAME)"
-          env:
-            - name: NODE_NAME
-              valueFrom:
-                fieldRef:
-                  fieldPath: spec.nodeName
-            - name: NAMESPACE
-              valueFrom:
-                fieldRef:
-                  fieldPath: metadata.namespace
-            - name: "DRYCC_STORAGE_CA"
-              value: /etc/drycc/storage/pki/ca.crt
-            - name: "DRYCC_STORAGE_CERT"
-              value: /etc/drycc/storage/pki/tls.crt
-            - name: "DRYCC_STORAGE_KEY"
-              value: /etc/drycc/storage/pki/tls.key
-            - name: "DRYCC_STORAGE_JWT"
-              valueFrom:
-                secretKeyRef:
-                  name: drycc-storage-creds
-                  key: jwtkey
-          volumeMounts:
-            - name: socket-dir
-              mountPath: /var/lib/csi/sockets/pluginproxy/
-            - name: certs
-              mountPath: /etc/drycc/storage/pki/
-              readOnly: true
-      volumes:
+      - name: drycc-storage-csi-controller-provisioner
+        image: {{ .Values.csi.statefulset.provisionerImage }}
+        args:
+        - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+        - --leader-election
+        - --leader-election-namespace={{ .Release.Namespace }}
+        - --http-endpoint=:9809
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9809
+          name: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz/leader-election
+            port: healthz
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
+        volumeMounts:
         - name: socket-dir
-          emptyDir: {}
-        - name: certs
-          secret:
-            secretName: drycc-storage-creds
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      - name: drycc-storage-csi-controller-attacher
+        image: {{ .Values.csi.statefulset.attacherImage }}
+        args:
+        - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+        - --leader-election
+        - --leader-election-namespace={{ .Release.Namespace }}
+        - --http-endpoint=:9811
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9811
+          name: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz/leader-election
+            port: healthz
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      # resizer
+      - name: drycc-storage-csi-controller-resizer
+        image: {{ .Values.csi.statefulset.resizerImage }}
+        args:
+        - --csi-address=/var/lib/csi/sockets/pluginproxy/csi.sock
+        - --leader-election
+        - --leader-election-namespace={{ .Release.Namespace }}
+        - --http-endpoint=:9810
+        imagePullPolicy: IfNotPresent
+        ports:
+        - containerPort: 9810
+          name: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz/leader-election
+            port: healthz
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+      - name: drycc-storage-csi-controller-plugin
+        image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
+        imagePullPolicy: IfNotPresent
+        args:
+        - controls
+        - csi
+        - --endpoint=unix:///var/lib/csi/sockets/pluginproxy/csi.sock
+        - --filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        - --nodeid=$(NODE_NAME)
+        - --driverName={{ .Values.csi.driverName }}
+        - --components=controller
+        - --attacher=true
+        env:
+        - name: NODE_NAME
+          valueFrom:
+            fieldRef:
+              fieldPath: spec.nodeName
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
+        volumeMounts:
+        - name: socket-dir
+          mountPath: /var/lib/csi/sockets/pluginproxy/
+        - name: storage-config
+          mountPath: /etc/seaweedfs
+      volumes:
+      - name: socket-dir
+        emptyDir: {}
+      - name: storage-config
+        configMap:
+          name: storage-config
 {{- end }}

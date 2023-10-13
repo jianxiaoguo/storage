@@ -15,6 +15,22 @@ usage() {
   echo "Use 'boot [command] [subcommand] --help' to learn more."
 }
 
+phealth() {
+  url=$1
+  retry=$2
+  interval=$3
+  echo -e "\\033[32m---> Waiting for other mainnode pd running...\\033[0m"
+  for ((i=1; i<=retry; i++))
+  do
+    failed=$(controls tipd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
+    if [[ $failed -eq 0 ]]; then
+      return 0
+    fi
+    sleep "${interval}"s
+  done
+  return 100
+}
+
 controls() {
   case "$1" in
     'tipd')
@@ -35,22 +51,6 @@ controls() {
   esac
 }
 
-check_pd_connect() {
-  url=$1
-  retry=$2
-  interval=$3
-  echo -e "\\033[32m---> Waiting for other mainnode pd running...\\033[0m"
-  for ((i=1; i<=retry; i++))
-  do
-    failed=$(controls tipd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
-    if [[ $failed -eq 0 ]]; then
-      return 0
-    fi
-    sleep "${interval}"s
-  done
-  return 100
-}
-
 mainnode() {
   case "$1" in
     'tipd')
@@ -58,7 +58,7 @@ mainnode() {
       run_pd_server="pd-server"
       for endpoint in $(echo "${DRYCC_STORAGE_TIPD_ENDPOINTS}" | tr "," "\n")
       do
-        if check_pd_connect "$endpoint" 10 1; then
+        if phealth "$endpoint" 10 1; then
           run_pd_server="$run_pd_server --join $endpoint"
           break
         fi
@@ -67,7 +67,6 @@ mainnode() {
     ;;
     'weed')
       shift
-      setup_weed
       weed master "$@"
     ;;
     *)
@@ -80,8 +79,6 @@ metanode() {
   case "$1" in
     'weed')
       shift
-      setup_weed
-      setup_filer
       weed filer -s3 -s3.config /etc/seaweedfs/s3.json "$@"
     ;;
     'tikv')
@@ -98,74 +95,12 @@ datanode() {
   case "$1" in
     'weed')
       shift
-      setup_weed
       weed volume "$@"
     ;;
     *)
       usage
     ;;
   esac
-}
-
-setup_weed() {
-  if [ -z "${DRYCC_STORAGE_JWT}" ]; then
-    echo '[ERROR] ' "DRYCC_STORAGE_JWT env required." >&2
-    exit 1
-  fi
-  cat << EOF > "/etc/seaweedfs/security.toml"
-[jwt.signing]
-key = "${DRYCC_STORAGE_JWT}"
-expires_after_seconds = 10           # seconds
-[access]
-ui = false
-[jwt.signing.read]
-key = "${DRYCC_STORAGE_JWT}"
-expires_after_seconds = 10           # seconds
-[jwt.filer_signing]
-key = "${DRYCC_STORAGE_JWT}"
-expires_after_seconds = 10           # seconds
-[jwt.filer_signing.read]
-key = "${DRYCC_STORAGE_JWT}"
-expires_after_seconds = 10           # seconds
-EOF
-}
-
-setup_filer() {
-  if [ -z "${DRYCC_STORAGE_ACCESSKEY}" ]; then
-    echo '[ERROR] ' "DRYCC_STORAGE_ACCESSKEY env required." >&2
-    exit 1
-  fi
-  if [ -z "${DRYCC_STORAGE_SECRETKEY}" ]; then
-    echo '[ERROR] ' "DRYCC_STORAGE_SECRETKEY env required." >&2
-    exit 1
-  fi
-  if [ -z "${DRYCC_STORAGE_TIPD_ENDPOINTS}" ]; then
-    echo '[ERROR] ' "DRYCC_STORAGE_TIPD_ENDPOINTS env required." >&2
-    exit 1
-  fi
-  cat << EOF > "/etc/seaweedfs/filer.toml"
-[tikv]
-enabled = true
-pdaddrs = "${DRYCC_STORAGE_TIPD_ENDPOINTS}"
-deleterange_concurrency = 1
-enable_1pc = false
-EOF
-  cat << EOF > "/etc/seaweedfs/s3.json"
-{
-  "identities": [
-    {
-      "name": "drycc",
-      "credentials": [
-        {
-          "accessKey": "${DRYCC_STORAGE_ACCESSKEY}",
-          "secretKey": "${DRYCC_STORAGE_SECRETKEY}"
-        }
-      ],
-      "actions": ["Admin", "Read", "List", "Tagging", "Write"]
-    }
-  ]
-}
-EOF
 }
 
 main() {

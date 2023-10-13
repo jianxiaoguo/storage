@@ -1,5 +1,5 @@
 {{- if eq .Values.global.storageLocation "on-cluster" }}
-{{- $replicaCount := int .Values.metanode.replicas }}
+{{- $replicaCount := int .Values.metanode.weed.replicas }}
 {{- $clusterDomain := .Values.global.clusterDomain }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -26,9 +26,9 @@ spec:
         app: drycc-storage-metanode-weed
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.metanode.nodeAffinityPreset.type "key" .Values.metanode.nodeAffinityPreset.key "values" .Values.metanode.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.weed.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.weed.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.metanode.weed.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.metanode.weed.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.metanode.weed.nodeAffinityPreset.type "key" .Values.metanode.weed.nodeAffinityPreset.key "values" .Values.metanode.weed.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       initContainers:
       - name: drycc-storage-metanode-weed-init
@@ -51,6 +51,9 @@ spec:
         args:
         - metanode
         - weed
+        - -port=8888
+        - -port.grpc=18888
+        - -port.readonly=28888
         - -master={{ include "mainnode.weedUrls" . }}
         - -s3.port=8333
         - -defaultStoreDir=/data
@@ -70,28 +73,12 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: DRYCC_STORAGE_JWT
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
-        - name: DRYCC_STORAGE_ACCESSKEY
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: accesskey
-        - name: DRYCC_STORAGE_SECRETKEY
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: secretkey
-        - name: DRYCC_STORAGE_TIPD_ENDPOINTS
-          value: {{ include "mainnode.tipdUrls" . }}
         ports:
         - containerPort: 8333
         - containerPort: 8888
         - containerPort: 9326
         - containerPort: 18888
+        - containerPort: 28888
         startupProbe:
           httpGet:
             path: /metrics
@@ -117,30 +104,36 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        {{- if .Values.metanode.persistence.enabled }}
         volumeMounts:
+        - name: storage-config
+          mountPath: /etc/seaweedfs
+        {{- if .Values.metanode.weed.persistence.enabled }}
         - name: storage-metanode-weed
           mountPath: /data
         {{- end }}
+      volumes:
+      - name: storage-config
+        configMap:
+          name: storage-config
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
         runAsUser: 1001
-  {{- if .Values.metanode.persistence.enabled }}
+  {{- if .Values.metanode.weed.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
       name: storage-metanode-weed
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.metanode.persistence.storageClass }}
-      {{- if (eq "-" .Values.metanode.persistence.storageClass) }}
+      {{- if .Values.metanode.weed.persistence.storageClass }}
+      {{- if (eq "-" .Values.metanode.weed.persistence.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.metanode.persistence.storageClass }}"
+      storageClassName: "{{ .Values.metanode.weed.persistence.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.metanode.persistence.size | quote }}
+          storage: {{ .Values.metanode.weed.persistence.size | quote }}
   {{- end }}
 {{- end }}

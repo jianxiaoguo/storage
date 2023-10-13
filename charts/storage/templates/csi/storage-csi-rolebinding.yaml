@@ -1,0 +1,13 @@
+kind: RoleBinding
+apiVersion: rbac.authorization.k8s.io/v1
+metadata:
+  name: drycc-storage-csi
+  namespace: {{ .Release.Namespace }}
+subjects:
+  - kind: ServiceAccount
+    namespace: {{ .Release.Namespace }}
+    name: drycc-storage-csi
+roleRef:
+  kind: Role
+  name: drycc-storage-csi
+  apiGroup: rbac.authorization.k8s.io

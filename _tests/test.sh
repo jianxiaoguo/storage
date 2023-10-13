@@ -8,13 +8,11 @@ function start-test-mainnode() {
   podman run -d --name test-storage-mainnode-tipd \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
-    -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-mainnode-tipd.sh
 
   podman run -d --name test-storage-mainnode-weed \
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
-    -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-mainnode-weed.sh
 }
 
@@ -32,7 +30,6 @@ function start-test-metanode() {
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e DRYCC_STORAGE_TIPD_ENDPOINTS="http://${TIPD_IP}:2379" \
-    -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-metanode-tikv.sh
 
   WEED_IP=$(podman inspect --format "{{ .NetworkSettings.IPAddress }}" test-storage-mainnode-weed)
@@ -40,7 +37,6 @@ function start-test-metanode() {
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e MASTER="${WEED_IP}:9333" \
-    -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     -e DRYCC_STORAGE_ACCESSKEY="${DRYCC_STORAGE_ACCESSKEY}" \
     -e DRYCC_STORAGE_SECRETKEY="${DRYCC_STORAGE_SECRETKEY}" \
     -e DRYCC_STORAGE_TIPD_ENDPOINTS="http://${TIPD_IP}:2379" \
@@ -61,7 +57,6 @@ function start-test-datanode() {
     --entrypoint init-stack \
     -v "${BASE_DIR}":/usr/local/bin \
     -e MSERVER="${WEED_IP}:9333" \
-    -e DRYCC_STORAGE_JWT=5f0254bc65b511ee927c00163e04a9cd \
     registry.drycc.cc/drycc/storage:canary start-datanode-weed.sh
 }
 

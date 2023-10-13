@@ -6,12 +6,12 @@ metadata:
 spec:
   podSelector:
     matchLabels:
-      app: drycc-storage
+      component: drycc-storage
   policyTypes:
-    - Ingress
+  - Ingress
   ingress:
-    - from:
-      - namespaceSelector:
-          matchLabels:
-            kubernetes.io/metadata.name: {{ .Release.Namespace }}
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: {{ .Release.Namespace }}
 {{- end }}

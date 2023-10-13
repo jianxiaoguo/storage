@@ -7,6 +7,7 @@ metadata:
 spec:
   selector:
     matchLabels:
+      component: drycc-storage
       app: drycc-storage-csi-node
   updateStrategy:
     rollingUpdate:
@@ -15,38 +16,48 @@ spec:
   template:
     metadata:
       labels:
+        component: drycc-storage
         app: drycc-storage-csi-node
     spec:
       priorityClassName: system-node-critical
       serviceAccountName: drycc-storage-csi
       initContainers:
-      - name: volume-permissions
-        image: {{ .Values.imageRegistry }}/drycc/base:bookworm
-        imagePullPolicy: IfNotPresent
-        command:
-        - /bin/bash
-        - -ec
-        - |
-          chown -R 1001:1001 /csi
-        resources: {}
-        securityContext:
-          runAsUser: 0
-        volumeMounts:
-        - name: plugin-dir
-          mountPath: /csi/
+      - name: drycc-storage-datanode-weed-init
+        image: registry.drycc.cc/drycc/python-dev:latest
+        imagePullPolicy: {{ .Values.imagePullPolicy }}
+        args:
+        - netcat
+        - -v
+        - -a
+        - drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        env:
+        - name: NAMESPACE
+          valueFrom:
+            fieldRef:
+              fieldPath: metadata.namespace
       containers:
       - name:  drycc-storage-csi-node-registrar
         image:  {{ .Values.csi.daemonset.registrarImage }}
         imagePullPolicy: IfNotPresent
         args:
-        - "--v=5"
-        - "--csi-address=/csi/csi.sock"
-        - "--kubelet-registration-path=/var/lib/kubelet/plugins/drycc-storage-csi/csi.sock"
+        - --csi-address=/csi/csi.sock
+        - --kubelet-registration-path=/var/lib/kubelet/plugins/{{ .Values.csi.driverName }}/csi.sock
+        - --http-endpoint=:9809
         env:
         - name: KUBE_NODE_NAME
           valueFrom:
             fieldRef:
               fieldPath: spec.nodeName
+        ports:
+        - containerPort: 9809
+          name: healthz
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
         volumeMounts:
         - name: plugin-dir
           mountPath: /csi/
@@ -58,9 +69,14 @@ spec:
         args :
         - controls
         - csi
-        - "--endpoint=unix:///csi/csi.sock"
-        - "--filer=drycc-storage-metanode.$(NAMESPACE).svc.{{ $clusterDomain }}:18888"
-        - "--nodeid=$(NODE_NAME)"
+        - --endpoint=unix:///csi/csi.sock
+        - --filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        - --nodeid=$(NODE_NAME)
+        - --driverName={{ .Values.csi.driverName }}
+        - --cacheDir=/var/cache/seaweedfs
+        - --dataLocality={{ .Values.csi.dataLocality }}
+        - --dataCenter=$(DATA_CENTER)
+        - --components=node
         env:
         - name: NODE_NAME
           valueFrom:
@@ -70,17 +86,10 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: "DRYCC_STORAGE_CA"
-          value: /etc/drycc/storage/pki/ca.crt
-        - name: "DRYCC_STORAGE_CERT"
-          value: /etc/drycc/storage/pki/tls.crt
-        - name: "DRYCC_STORAGE_KEY"
-          value: /etc/drycc/storage/pki/tls.key
-        - name: "DRYCC_STORAGE_JWT"
+        - name: DATA_CENTER
           valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
+            fieldRef:
+              fieldPath: metadata.labels['topology.kubernetes.io/zone']
         securityContext:
           privileged: true
           capabilities:
@@ -89,31 +98,45 @@ spec:
         volumeMounts:
         - name: plugin-dir
           mountPath: /csi
-        - name: pods-mount-dir
-          mountPath: /var/lib/kubelet/pods
+        - name: plugins-dir
+          mountPath: {{ .Values.csi.volumes.pluginsDir }}
           mountPropagation: "Bidirectional"
-        - mountPath: /dev
-          name: device-dir
-        - name: certs
-          mountPath: /etc/drycc/storage/pki/
-          readOnly: true
+        - name: pods-mount-dir
+          mountPath: {{ .Values.csi.volumes.podsMountDir }}
+          mountPropagation: "Bidirectional"
+        - name: device-dir
+          mountPath: /dev
+        - name: cache
+          mountPath: /var/cache/seaweedfs
+        - name: storage-config
+          mountPath: /etc/seaweedfs
       volumes:
-      - name: registration-dir
-        hostPath:
-          path: /var/lib/kubelet/plugins_registry/
-          type: DirectoryOrCreate
       - name: plugin-dir
         hostPath:
-          path: /var/lib/kubelet/plugins/drycc-storage-csi
+          path: {{ .Values.csi.volumes.pluginsDir }}/{{ .Values.csi.driverName }}
           type: DirectoryOrCreate
+      - name: plugins-dir
+        hostPath:
+          path: {{ .Values.csi.volumes.pluginsDir }}
+          type: Directory
       - name: pods-mount-dir
         hostPath:
-          path: /var/lib/kubelet/pods
+          path: {{ .Values.csi.volumes.podsMountDir }}
           type: Directory
+      - name: registration-dir
+        hostPath:
+          path: {{ .Values.csi.volumes.registrationDir }}
+          type: DirectoryOrCreate
       - name: device-dir
         hostPath:
           path: /dev
-      - name: certs
-        secret:
-          secretName: drycc-storage-creds
+      - name: cache
+        emptyDir: {}
+      - name: storage-config
+        configMap:
+          name: storage-config
+      securityContext:
+        fsGroup: 0
+        runAsGroup: 0
+        runAsUser: 0
 {{- end }}

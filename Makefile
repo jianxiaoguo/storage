@@ -8,7 +8,7 @@ DEV_ENV_PREFIX := podman run --env CGO_ENABLED=0 --rm -v ${CURDIR}:${DEV_ENV_WOR
 DEV_ENV_CMD := ${DEV_ENV_PREFIX} ${DEV_ENV_IMAGE}
 DRYCC_REGISTRY ?= ${DEV_REGISTRY}
 
-SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(wildcard _tests/*) $(wildcard _tests/bin/*)
+SHELL_SCRIPTS = $(wildcard rootfs/bin/*) $(wildcard _tests/*.sh)
 
 include versioning.mk
 

@@ -1,8 +1,6 @@
 # Drycc Storage v3
 
 [![Build Status](https://woodpecker.drycc.cc/api/badges/drycc/storage/status.svg)](https://woodpecker.drycc.cc/drycc/storage)
-[![codecov](https://codecov.io/gh/drycc/storage/branch/main/graph/badge.svg)](https://codecov.io/gh/drycc/storage)
-[![Go Report Card](https://img.shields.io/badge/go%20report-A+-brightgreen.svg?style=flat)](http://goreportcard.com/report/drycc/storage)
 
 Drycc (pronounced DAY-iss) Workflow is an open source Platform as a Service (PaaS) that adds a developer-friendly layer to any [Kubernetes](http://kubernetes.io) cluster, making it easy to deploy and manage applications on your own servers.
 
@@ -62,5 +60,4 @@ Please follow the instructions on the [official Drycc docs][drycc-docs] to insta
 [s3-api]: http://docs.aws.amazon.com/AmazonS3/latest/API/APIRest.html
 [issues]: https://github.com/drycc/storage/issues
 [prs]: https://github.com/drycc/storage/pulls
-[drycc-docs]: https://drycc.com/docs/workflow
-[v2.18]: https://github.com/drycc/workflow/releases/tag/v2.18.0
+[drycc-docs]: https://www.drycc.com

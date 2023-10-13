@@ -1,5 +1,5 @@
 {{- if eq .Values.global.storageLocation "on-cluster" }}
-{{- $replicaCount := int .Values.mainnode.replicas }}
+{{- $replicaCount := int .Values.mainnode.weed.replicas }}
 {{- $clusterDomain := .Values.global.clusterDomain }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -26,9 +26,9 @@ spec:
         app: drycc-storage-mainnode-weed
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mainnode.nodeAffinityPreset.type "key" .Values.mainnode.nodeAffinityPreset.key "values" .Values.mainnode.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.weed.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.weed.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.weed.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.weed.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mainnode.weed.nodeAffinityPreset.type "key" .Values.mainnode.weed.nodeAffinityPreset.key "values" .Values.mainnode.weed.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       containers:
       - name: drycc-storage-mainnode-weed
@@ -40,6 +40,7 @@ spec:
         - -mdir=/data
         - -ip=$(POD_NAME).drycc-storage-mainnode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}
         - -port=9333
+        - -port.grpc=19333
         - -peers={{ include "mainnode.weedUrls" . }}
         - -metricsPort=9324
         env:
@@ -57,11 +58,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: "DRYCC_STORAGE_JWT"
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
         ports:
         - containerPort: 9333
         - containerPort: 19333
@@ -91,30 +87,36 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        {{- if .Values.mainnode.persistence.enabled }}
         volumeMounts:
+        - name: storage-config
+          mountPath: /etc/seaweedfs
+        {{- if .Values.mainnode.weed.persistence.enabled }}
         - name: storage-mainnode-weed
           mountPath: /data
         {{- end }}
+      volumes:
+      - name: storage-config
+        configMap:
+          name: storage-config
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
         runAsUser: 1001
-  {{- if .Values.mainnode.persistence.enabled }}
+  {{- if .Values.mainnode.weed.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
       name: storage-mainnode-weed
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.mainnode.persistence.storageClass }}
-      {{- if (eq "-" .Values.mainnode.persistence.storageClass) }}
+      {{- if .Values.mainnode.weed.persistence.storageClass }}
+      {{- if (eq "-" .Values.mainnode.weed.persistence.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.mainnode.persistence.storageClass }}"
+      storageClassName: "{{ .Values.mainnode.weed.persistence.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.mainnode.persistence.size | quote }}
+          storage: {{ .Values.mainnode.weed.persistence.size | quote }}
   {{- end }}
 {{- end }}

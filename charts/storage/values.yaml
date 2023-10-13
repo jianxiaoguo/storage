@@ -5,97 +5,148 @@ imageRegistry: "registry.drycc.cc"
 
 # drycc storage csi driver
 csi:
-  nodeAffinityPreset:
-    key: "drycc.cc/node"
-    type: "soft"
-    values:
-    - "true"
-  podAffinityPreset:
-    type: ""
-    extraMatchLabels:
-      security: "drycc-security"
-  podAntiAffinityPreset:
-    type: "soft"
-    extraMatchLabels:
-      app: "drycc-storage-csi-controller"
+  driverName: storage.drycc.cc
+  dataLocality: "none"
+  storageClassName: drycc-storage
   daemonset:
-    registrarImage: registry.drycc.cc/k8s/sig-storage/csi-node-driver-registrar:v2.5.0
+    registrarImage: registry.drycc.cc/k8s/sig-storage/csi-node-driver-registrar:v2.9.0
   statefulset:
     replicas: 1
-    resizerImage: registry.drycc.cc/k8s/sig-storage/csi-resizer:v1.4.0
-    attacherImage: registry.drycc.cc/k8s/sig-storage/csi-attacher:v3.4.0
-    provisionerImage: registry.drycc.cc/k8s/sig-storage/csi-provisioner:v3.1.0
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-csi-controller"
+    resizerImage: registry.drycc.cc/k8s/sig-storage/csi-resizer:v1.9.0
+    attacherImage: registry.drycc.cc/k8s/sig-storage/csi-attacher:v4.4.0
+    provisionerImage: registry.drycc.cc/k8s/sig-storage/csi-provisioner:v3.6.0
+    livenessProbeImage: registry.drycc.cc/k8s/sig-storage/livenessprobe:v2.11.0
+  volumes:
+    pluginsDir: /var/lib/kubelet/plugins
+    podsMountDir: /var/lib/kubelet/pods
+    registrationDir: /var/lib/kubelet/plugins_registry
 
 # mainnode seaweedfs master & tipd
 mainnode:
-  replicas: 3
-  nodeAffinityPreset:
-    key: "drycc.cc/node"
-    type: "soft"
-    values:
-    - "true"
-  podAffinityPreset:
-    type: ""
-    extraMatchLabels:
-      security: "drycc-security"
-  podAntiAffinityPreset:
-    type: "soft"
-    extraMatchLabels:
-      app: "drycc-storage-mainnode"
-  # persistence config
-  persistence:
-    enabled: false
-    size: 5Gi
-    storageClass: ""
+  tipd:
+    replicas: 3
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-mainnode-tipd"
+    # persistence config
+    persistence:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
+  weed:
+    replicas: 3
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-mainnode-weed"
+    # persistence config
+    persistence:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
 
 # metanode: seaweedfs filer & tikv
 metanode:
-  replicas: 3
-  nodeAffinityPreset:
-    key: "drycc.cc/node"
-    type: "soft"
-    values:
-    - "true"
-  podAffinityPreset:
-    type: ""
-    extraMatchLabels:
-      security: "drycc-security"
-  podAntiAffinityPreset:
-    type: "soft"
-    extraMatchLabels:
-      app: "drycc-storage-metanode"
-  # persistence config
-  persistence:
-    enabled: false
-    size: 5Gi
-    storageClass: ""
+  tikv:
+    replicas: 3
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-metanode-tikv"
+    # persistence config
+    persistence:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
+  weed:
+    replicas: 3
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-metanode-weed"
+    # persistence config
+    persistence:
+      enabled: false
+      size: 5Gi
+      storageClass: ""
 
 # datanode: seaweedfs volume
 datanode:
-  replicas: 3
-  nodeAffinityPreset:
-    key: "drycc.cc/node"
-    type: "soft"
-    values:
-    - "true"
-  podAffinityPreset:
-    type: ""
-    extraMatchLabels:
-      security: "drycc-security"
-  podAntiAffinityPreset:
-    type: "soft"
-    extraMatchLabels:
-      app: "drycc-storage-datanode"
-  # persistence config
-  persistence:
-    ssd:
-      enabled: false
-      size: 5Gi
-      storageClass: ""
-    hdd:
-      enabled: false
-      size: 5Gi
-      storageClass: ""
+  weed:
+    replicas: 3
+    nodeAffinityPreset:
+      key: "drycc.cc/node"
+      type: "soft"
+      values:
+      - "true"
+    podAffinityPreset:
+      type: ""
+      extraMatchLabels:
+        security: "drycc-security"
+    podAntiAffinityPreset:
+      type: "soft"
+      extraMatchLabels:
+        app: "drycc-storage-datanode-weed"
+    # persistence config
+    persistence:
+      ssd:
+        enabled: false
+        size: 5Gi
+        storageClass: ""
+      hdd:
+        enabled: false
+        size: 5Gi
+        storageClass: ""
 
 # Service
 service:

@@ -1,5 +1,5 @@
 {{- if eq .Values.global.storageLocation "on-cluster" }}
-{{- $replicaCount := int .Values.mainnode.replicas }}
+{{- $replicaCount := int .Values.mainnode.tipd.replicas }}
 {{- $clusterDomain := .Values.global.clusterDomain }}
 apiVersion: apps/v1
 kind: StatefulSet
@@ -26,9 +26,9 @@ spec:
         app: drycc-storage-mainnode-tipd
     spec:
       affinity:
-        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
-        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mainnode.nodeAffinityPreset.type "key" .Values.mainnode.nodeAffinityPreset.key "values" .Values.mainnode.nodeAffinityPreset.values ) | nindent 10 }}
+        podAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.tipd.podAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.tipd.podAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        podAntiAffinity: {{- include "common.affinities.pods" (dict "type" .Values.mainnode.tipd.podAntiAffinityPreset.type "component" "" "extraMatchLabels" .Values.mainnode.tipd.podAntiAffinityPreset.extraMatchLabels "topologyKey" "" "context" $) | nindent 10 }}
+        nodeAffinity: {{- include "common.affinities.nodes" (dict "type" .Values.mainnode.tipd.nodeAffinityPreset.type "key" .Values.mainnode.tipd.nodeAffinityPreset.key "values" .Values.mainnode.tipd.nodeAffinityPreset.values ) | nindent 10 }}
       serviceAccount: drycc-storage
       containers:
       - name: drycc-storage-mainnode-tipd
@@ -58,11 +58,6 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
-        - name: DRYCC_STORAGE_JWT
-          valueFrom:
-            secretKeyRef:
-              name: drycc-storage-creds
-              key: jwtkey
         - name: DRYCC_STORAGE_TIPD_ENDPOINTS
           value: {{ include "mainnode.tipdUrls" . }}
         ports:
@@ -93,30 +88,36 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
-        {{- if .Values.mainnode.persistence.enabled }}
         volumeMounts:
+        - name: storage-config
+          mountPath: /etc/seaweedfs
+        {{- if .Values.mainnode.tipd.persistence.enabled }}
         - name: storage-mainnode-tipd
           mountPath: /data
         {{- end }}
+      volumes:
+      - name: storage-config
+        configMap:
+          name: storage-config
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
         runAsUser: 1001
-  {{- if .Values.mainnode.persistence.enabled }}
+  {{- if .Values.mainnode.tipd.persistence.enabled }}
   volumeClaimTemplates:
   - metadata:
       name: storage-mainnode-tipd
     spec:
       accessModes: [ "ReadWriteOnce" ]
-      {{- if .Values.mainnode.persistence.storageClass }}
-      {{- if (eq "-" .Values.mainnode.persistence.storageClass) }}
+      {{- if .Values.mainnode.tipd.persistence.storageClass }}
+      {{- if (eq "-" .Values.mainnode.tipd.persistence.storageClass) }}
       storageClassName: ""
       {{- else }}
-      storageClassName: "{{ .Values.mainnode.persistence.storageClass }}"
+      storageClassName: "{{ .Values.mainnode.tipd.persistence.storageClass }}"
       {{- end }}
       {{- end }}
       resources:
         requests:
-          storage: {{ .Values.mainnode.persistence.size | quote }}
+          storage: {{ .Values.mainnode.tipd.persistence.size | quote }}
   {{- end }}
 {{- end }}

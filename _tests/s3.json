@@ -1,0 +1,10 @@
+{
+	"identities": [{
+		"name": "drycc",
+		"credentials": [{
+			"accessKey": "$DRYCC_STORAGE_ACCESSKEY",
+			"secretKey": "$DRYCC_STORAGE_SECRETKEY"
+		}],
+		"actions": ["Admin", "Read", "List", "Tagging", "Write"]
+	}]
+}
