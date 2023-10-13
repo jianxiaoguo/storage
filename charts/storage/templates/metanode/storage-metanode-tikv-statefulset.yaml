@@ -17,10 +17,12 @@ spec:
   podManagementPolicy: Parallel
   selector:
     matchLabels:
+      component: drycc-storage
       app: drycc-storage-metanode-tikv
   template:
     metadata:
       labels:
+        component: drycc-storage
         app: drycc-storage-metanode-tikv
     spec:
       affinity:

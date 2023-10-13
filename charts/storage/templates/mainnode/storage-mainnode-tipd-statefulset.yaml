@@ -17,10 +17,12 @@ spec:
   podManagementPolicy: OrderedReady
   selector:
     matchLabels:
+      component: drycc-storage
       app: drycc-storage-mainnode-tipd
   template:
     metadata:
       labels:
+        component: drycc-storage
         app: drycc-storage-mainnode-tipd
     spec:
       affinity:
