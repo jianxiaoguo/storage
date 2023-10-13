@@ -17,10 +17,12 @@ spec:
   podManagementPolicy: Parallel
   selector:
     matchLabels:
+      component: drycc-storage
       app: drycc-storage-metanode-weed
   template:
     metadata:
       labels:
+        component: drycc-storage
         app: drycc-storage-metanode-weed
     spec:
       affinity:
