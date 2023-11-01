@@ -1,3 +1,7 @@
+{{- define "mainnode.filerUrl" -}}
+{{- printf "drycc-storage-metanode-weed.%s.svc.%s:8888" .Release.Namespace .Values.global.clusterDomain }}
+{{- end -}}
+
 {{- define "mainnode.weedUrls" -}}
 {{- $replicaCount := int .Values.mainnode.weed.replicas }}
 {{- $clusterDomain := .Values.global.clusterDomain }}

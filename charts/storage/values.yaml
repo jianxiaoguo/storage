@@ -36,6 +36,22 @@ csi:
 
 # mainnode seaweedfs master & tipd
 mainnode:
+  cron:
+    scripts: |
+      lock
+      ec.encode -fullPercent=95 -quietFor=1h
+      ec.rebuild -force
+      ec.balance -force
+      volume.deleteEmpty -quietFor=24h -force
+      volume.balance -force
+      volume.fix.replication
+      s3.clean.uploads -timeAgo=24h
+      unlock
+    timeZone: "Etc/UTC"
+    schedule: "0 */1 * * *"
+    concurrencyPolicy: "Replace"
+    successfulJobsHistoryLimit: 1
+    failedJobsHistoryLimit: 1
   tipd:
     replicas: 3
     nodeAffinityPreset:

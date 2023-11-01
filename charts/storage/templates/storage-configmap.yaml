@@ -26,6 +26,6 @@ data:
     [tikv]
     enabled = true
     pdaddrs = "{{ include "mainnode.tipdUrls" . }}"
-    deleterange_concurrency = 1
-    enable_1pc = false
+    deleterange_concurrency = 2
+    enable_1pc = true
 {{- end }}
