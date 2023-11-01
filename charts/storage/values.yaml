@@ -58,6 +58,11 @@ mainnode:
       storageClass: ""
   weed:
     replicas: 3
+    # Storage replication type is XYZ:
+    # X number of replica in other data centers
+    # Y number of replica in other racks in the same data center
+    # Z number of replica in other servers in the same rack
+    defaultReplication: "001"
     nodeAffinityPreset:
       key: "drycc.cc/node"
       type: "soft"
