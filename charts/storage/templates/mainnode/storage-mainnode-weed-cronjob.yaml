@@ -41,12 +41,15 @@ spec:
             args:
             - /usr/bin/env
             - bash
-            - -c
+            - -ec
             - |
               # run weed shell
-              echo -e "\\033[32m---> Start running audit cronjob...\\033[0m"
+              echo -e "\n\\033[32m---> Start running audit cronjob <---\\033[0m\n"
               cat << EOF | weed shell -master={{ include "mainnode.weedUrls" . }} -filer={{ include "mainnode.filerUrl" . }}
               {{- (tpl .Values.mainnode.cron.scripts $) | nindent 14 -}}
               EOF
-              echo -e "\\033[32m---> Audit cronjob run completed...\\033[0m"
+              echo -e "\n\\033[32m---> Audit cronjob run completed <---\\033[0m\n"
+            env:
+            - name: TZ
+              value: UTC
 {{- end }}
