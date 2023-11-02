@@ -63,8 +63,11 @@ spec:
         {{- else if .Values.datanode.weed.persistence.ssd.enabled }}
         - -disk=ssd
         - -dir=/data/ssd
-        {{- else }}
+        {{- else if .Values.datanode.weed.persistence.hdd.enabled }}
+        - -disk=hdd
         - -dir=/data/hdd
+        {{- else }}
+        - -dir=/data
         {{- end }}
         - -metricsPort=9325
         env:

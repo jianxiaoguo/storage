@@ -28,10 +28,10 @@ spec:
             image: {{.Values.imageRegistry}}/{{.Values.imageOrg}}/python-dev:latest
             imagePullPolicy: {{.Values.imagePullPolicy}}
             args:
-              - netcat
-              - -v
-              - -a
-              - {{ include "mainnode.filerUrl" . }},{{ include "mainnode.weedUrls" . }}
+            - netcat
+            - -v
+            - -a
+            - {{ include "mainnode.filerUrl" . }},{{ include "mainnode.weedUrls" . }}
           containers:
           - image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
             imagePullPolicy: {{ .Values.imagePullPolicy }}
@@ -44,7 +44,9 @@ spec:
             - -c
             - |
               # run weed shell
+              echo -e "\\033[32m---> Start running audit cronjob...\\033[0m"
               cat << EOF | weed shell -master={{ include "mainnode.weedUrls" . }} -filer={{ include "mainnode.filerUrl" . }}
               {{- (tpl .Values.mainnode.cron.scripts $) | nindent 14 -}}
               EOF
+              echo -e "\\033[32m---> Audit cronjob run completed...\\033[0m"
 {{- end }}
