@@ -144,7 +144,7 @@ metanode:
 # datanode: seaweedfs volume
 datanode:
   weed:
-    replicas: 3
+    replicas: 4
     nodeAffinityPreset:
       key: "drycc.cc/node"
       type: "soft"
