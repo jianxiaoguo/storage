@@ -68,10 +68,8 @@ spec:
             -disk=hdd,ssd \
             -dir=/data/hdd,/data/ssd
             {{- else if .Values.datanode.weed.persistence.ssd.enabled }}
-            -disk=ssd \
             -dir=/data/ssd
             {{- else if .Values.datanode.weed.persistence.hdd.enabled }}
-            -disk=hdd \
             -dir=/data/hdd
             {{- else }}
             -dir=/data
