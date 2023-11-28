@@ -162,14 +162,10 @@ datanode:
         app: "drycc-storage-datanode-weed"
     # persistence config
     persistence:
-      meta:
-        enabled: false
-        size: 5Gi
-        storageClass: ""
-      data:
-        enabled: false
-        size: 5Gi
-        storageClass: ""
+      enabled: false
+      size: 5Gi
+      storageClass: ""
+    compactionMBps: 100
 
 # Service
 service:

@@ -88,14 +88,16 @@ spec:
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs
-        {{- if .Values.mainnode.weed.persistence.enabled }}
         - name: storage-mainnode-weed
           mountPath: /data
-        {{- end }}
       volumes:
       - name: storage-config
         configMap:
           name: storage-config
+      {{- if not (.Values.mainnode.weed.persistence.enabled) }}
+      - name: storage-mainnode-weed
+        emptyDir: {}
+      {{- end }}
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001

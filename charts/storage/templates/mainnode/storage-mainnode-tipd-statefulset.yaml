@@ -87,14 +87,16 @@ spec:
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs
-        {{- if .Values.mainnode.tipd.persistence.enabled }}
         - name: storage-mainnode-tipd
           mountPath: /data
-        {{- end }}
       volumes:
       - name: storage-config
         configMap:
           name: storage-config
+      {{- if not (.Values.mainnode.tipd.persistence.enabled) }}
+      - name: storage-mainnode-tipd
+        emptyDir: {}
+      {{- end }}
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001

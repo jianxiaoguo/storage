@@ -94,14 +94,16 @@ spec:
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs
-        {{- if .Values.metanode.tikv.persistence.enabled }}
         - name: storage-metanode-tikv
           mountPath: /data
-        {{- end }}
       volumes:
       - name: storage-config
         configMap:
           name: storage-config
+      {{- if not (.Values.metanode.tikv.persistence.enabled) }}
+      - name: storage-metanode-tikv
+        emptyDir: {}
+      {{- end }}
       securityContext:
         fsGroup: 1001
         runAsGroup: 1001
