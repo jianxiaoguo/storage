@@ -4,9 +4,9 @@ FROM registry.drycc.cc/drycc/base:${CODENAME}
 ENV DRYCC_UID=1001 \
   DRYCC_GID=1001 \
   DRYCC_HOME_DIR=/home/drycc \
-  JQ_VERSION="1.7" \
-  TIKV_VERSION="7.4.0" \
-  SEAWEEDFS_VERSION="3.58" \
+  JQ_VERSION="1.7.1" \
+  TIKV_VERSION="7.5.0" \
+  SEAWEEDFS_VERSION="3.61" \
   SEAWEEDFS_DATA_DIR=/data \
   SEAWEEDFS_CONF_DIR=/etc/seaweedfs
 
