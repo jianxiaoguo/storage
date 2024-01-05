@@ -30,7 +30,7 @@
     {{- $_ := set .Release "secrets" dict -}}
   {{- end -}}
   {{- if not (index .Release.secrets "accesskey") -}}
-    {{- if (printf "%s" .Values.accesskey) | default "" | ne "" -}}
+    {{- if .Values.accesskey | default "" | ne "" -}}
       {{- $_ := set .Release.secrets "accesskey" .Values.accesskey -}}
     {{- else -}}
       {{- $_ := set .Release.secrets "accesskey" (randAlphaNum 32) -}}
@@ -45,7 +45,7 @@
     {{- $_ := set .Release "secrets" dict -}}
   {{- end -}}
   {{- if not (index .Release.secrets "secretkey") -}}
-    {{- if (printf "%s" .Values.secretkey) | default "" | ne "" -}}
+    {{- if .Values.secretkey | default "" | ne "" -}}
       {{- $_ := set .Release.secrets "secretkey" .Values.secretkey -}}
     {{- else -}}
       {{- $_ := set .Release.secrets "secretkey" (randAlphaNum 32) -}}

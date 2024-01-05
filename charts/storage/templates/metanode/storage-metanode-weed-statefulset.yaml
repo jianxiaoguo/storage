@@ -39,6 +39,8 @@ spec:
         - -v
         - -a
         - {{ include "mainnode.weedUrls" . }}
+        - -u
+        - {{ include "mainnode.tipdUrls" . }}
       containers:
       - name: drycc-storage-metanode-weed
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
