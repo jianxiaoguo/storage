@@ -43,6 +43,10 @@ spec:
       - name: drycc-storage-metanode-tikv
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
+        {{- else }}
         args:
         - metanode
         - tikv
@@ -52,6 +56,7 @@ spec:
         - --advertise-addr=$(POD_NAME).drycc-storage-metanode-tikv.$(NAMESPACE).svc.{{ $clusterDomain }}:20160
         - --advertise-status-addr=$(POD_NAME).drycc-storage-metanode-tikv.$(NAMESPACE).{{ $clusterDomain }}:20180
         - --data-dir=/data
+        {{- end }}
         env:
         - name: TZ
           value: UTC
@@ -66,6 +71,7 @@ spec:
         ports:
         - containerPort: 20160
         - containerPort: 20180
+        {{- if not .Values.diagnosticMode.enabled }}
         startupProbe:
           httpGet:
             path: /metrics
@@ -91,6 +97,7 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
+        {{- end }}
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs

@@ -45,6 +45,10 @@ spec:
       - name: drycc-storage-metanode-weed
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
+        {{- else }}
         args:
         - metanode
         - weed
@@ -55,6 +59,7 @@ spec:
         - -s3.port=8333
         - -defaultStoreDir=/data
         - -metricsPort=9326
+        {{- end }}
         env:
         - name: TZ
           value: UTC
@@ -64,6 +69,7 @@ spec:
         - containerPort: 9326
         - containerPort: 18888
         - containerPort: 28888
+        {{- if not .Values.diagnosticMode.enabled }}
         startupProbe:
           httpGet:
             path: /metrics
@@ -89,6 +95,7 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
+        {{- end }}
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs

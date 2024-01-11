@@ -1,130 +1,128 @@
-#!/usr/bin/env bash
+#!/usr/bin/env python3
+import os
+import sys
+import time
+import getopt
+import contextlib
+from os import execvp
+from urllib.request import urlopen
 
-usage() {
-  echo "Valid commands for boot:"
-  echo ""
-  echo "controls tipd            run pd-ctl"
-  echo "controls csi             run seaweedfs csi driver"
-  echo "controls tikv            run tikv-ctl"
-  echo "mainnode tipd            start pd-server for tikv"
-  echo "mainnode weed            start seaweedfs master"
-  echo "metanode weed            start seaweedfs filer"
-  echo "metanode tikv            start tikv-server"
-  echo "datanode weed            start seaweedfs volume"
-  echo ""
-  echo "Use 'boot [command] [subcommand] --help' to learn more."
-}
 
-phealth() {
-  url=$1
-  retry=$2
-  interval=$3
-  echo -e "\\033[32m---> Waiting for other mainnode pd running...\\033[0m"
-  for ((i=1; i<=retry; i++))
-  do
-    failed=$(controls tipd health -u "${url}" | jq empty > /dev/null 2>&1; echo $?)
-    if [[ $failed -eq 0 ]]; then
-      return 0
-    fi
-    sleep "${interval}"s
-  done
-  return 100
-}
+usage = """
+Valid commands for boot:
 
-controls() {
-  case "$1" in
-    'tipd')
-      shift
-      pd-ctl "$@"
-    ;;
-    'csi')
-      shift
-      weed-csi "$@"
-    ;;
-    'tikv')
-      shift
-      tikv-ctl "$@"
-    ;;
-    *)
-      usage
-    ;;
-  esac
-}
+controls tipd            run pd-ctl
+controls csi             run seaweedfs csi driver
+controls tikv            run tikv-ctl
+mainnode tipd            start pd-server for tikv
+mainnode weed            start seaweedfs master
+metanode weed            start seaweedfs filer
+metanode tikv            start tikv-server
+datanode weed            start seaweedfs volume
 
-mainnode() {
-  case "$1" in
-    'tipd')
-      shift
-      run_pd_server="pd-server"
-      for endpoint in $(echo "${DRYCC_STORAGE_TIPD_ENDPOINTS}" | tr "," "\n")
-      do
-        if phealth "$endpoint" 10 1; then
-          run_pd_server="$run_pd_server --join $endpoint"
-          break
-        fi
-      done
-      $run_pd_server "$@"
-    ;;
-    'weed')
-      shift
-      weed master "$@"
-    ;;
-    *)
-      usage
-    ;;
-  esac
-}
+Use 'bootloader.py [command] [subcommand] --help' to learn more.
+"""
 
-metanode() {
-  case "$1" in
-    'weed')
-      shift
-      weed filer -s3 -s3.config /etc/seaweedfs/s3.json "$@"
-    ;;
-    'tikv')
-      shift
-      tikv-server "$@"
-    ;;
-    *)
-      usage
-    ;;
-  esac
-}
 
-datanode() {
-  case "$1" in
-    'weed')
-      shift
-      weed volume "$@"
-    ;;
-    *)
-      usage
-    ;;
-  esac
-}
+def exec(subcommand, args):
+    args.insert(0, sys.argv[0])
+    execvp(subcommand, args)
 
-main() {
-  case "$1" in
-    'controls')
-      shift
-      controls "$@"
-    ;;
-    'mainnode')
-      shift
-      mainnode "$@"
-    ;;
-    'metanode')
-      shift
-      metanode "$@"
-    ;;
-    'datanode')
-      shift
-      datanode "$@"
-    ;;
-    *)
-      usage
-    ;;
-  esac
-}
 
-main "$@"
+def getopt_value(opt, argv):
+    try:
+        _, name = getopt.long_has_args(opt, argv)
+        if name.startswith("%s=" % opt):
+            return name.split("=", 1)[1]
+        else:
+            index = argv.index(opt)
+            return argv[index+1]
+    except getopt.GetoptError:
+        return ""
+
+
+def controls(subcommand, args):
+    if subcommand == "tipd":
+        exec("pd-ctl", args)
+    elif subcommand == "csi":
+        exec("weed-csi", args)
+    elif subcommand == "tikv":
+        exec("tikv-ctl", args)
+    else:
+        print(usage)
+
+
+def pdhealth(endpoint, frequency):
+    msg = "\033[32m---> Waiting for other mainnode pd running...\033[0m"
+    for _ in range(frequency):
+        try:
+            with contextlib.closing(urlopen(f"{endpoint}/metrics")):
+                return True
+        except BaseException:
+            print(msg)
+        time.sleep(2)
+    return False
+
+
+def pdserver(args):
+    data_dir = getopt_value("--data-dir", args)
+    client_urls = getopt_value("--client-urls", args)
+    advertise_client_urls = getopt_value("--advertise-client-urls", args)
+    if not advertise_client_urls:
+        if client_urls:
+            advertise_client_urls = client_urls
+        else:
+            advertise_client_urls = "http://127.0.0.1:2379"
+    if len(os.listdir(data_dir)) == 0:
+        endpoints = os.environ.get("DRYCC_STORAGE_TIPD_ENDPOINTS", "").split(",")
+        join = None
+        for endpoint in endpoints:
+            if endpoint:
+                frequency = 3 if advertise_client_urls == endpoints[0] else 999
+                if pdhealth(endpoint, frequency):
+                    join = endpoint
+                    break
+        if join is not None:
+            args.insert(0, "--join")
+            args.insert(1, join)
+    exec("pd-server", args)
+
+
+def mainnode(subcommand, args):
+    if subcommand == "tipd":
+        pdserver(args)
+    elif subcommand == "weed":
+        args.insert(0, "master")
+        exec("weed", args)
+    else:
+        print(usage)
+
+
+def metanode(subcommand, args):
+    if subcommand == "weed":
+        args.insert(0, "filer")
+        args.insert(1, "-s3")
+        args.insert(2, "-s3.config")
+        args.insert(3, "/etc/seaweedfs/s3.json")
+        exec("weed", args)
+    elif subcommand == "tikv":
+        exec("tikv-server", args)
+    else:
+        print(usage)
+
+
+def datanode(subcommand, args):
+    if subcommand == "weed":
+        args.insert(0, "volume")
+        exec("weed", args)
+    else:
+        print(usage)
+
+
+if __name__ == "__main__":
+    if len(sys.argv) > 3:
+        command, subcommand, args = sys.argv[1], sys.argv[2], sys.argv[3:]
+        if command in ("controls", "mainnode", "metanode", "datanode"):
+            eval(command)(subcommand, args)
+            sys.exit()
+    print(usage)

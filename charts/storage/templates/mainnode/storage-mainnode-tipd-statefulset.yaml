@@ -34,6 +34,10 @@ spec:
       - name: drycc-storage-mainnode-tipd
         image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
         imagePullPolicy: {{ .Values.imagePullPolicy }}
+        {{- if .Values.diagnosticMode.enabled }}
+        command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
+        args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
+        {{- else }}
         args:
         - mainnode
         - tipd
@@ -43,6 +47,7 @@ spec:
         - --peer-urls=http://0.0.0.0:2380
         - --advertise-client-urls=http://$(POD_NAME).drycc-storage-mainnode-tipd.$(NAMESPACE).svc.{{ $clusterDomain }}:2379
         - --advertise-peer-urls=http://$(POD_NAME).drycc-storage-mainnode-tipd.$(NAMESPACE).svc.{{ $clusterDomain }}:2380
+        {{- end }}
         env:
         - name: TZ
           value: UTC
@@ -59,6 +64,7 @@ spec:
         ports:
         - containerPort: 2379
         - containerPort: 2380
+        {{- if not .Values.diagnosticMode.enabled }}
         startupProbe:
           httpGet:
             path: /metrics
@@ -84,6 +90,7 @@ spec:
           timeoutSeconds: 1
           successThreshold: 1
           failureThreshold: 5
+        {{- end }}
         volumeMounts:
         - name: storage-config
           mountPath: /etc/seaweedfs

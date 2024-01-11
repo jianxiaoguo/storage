@@ -2,3 +2,5 @@ vendor/
 coverage.txt
 .idea/*
 .vscode/*
+charts/storage/charts/
+charts/storage/Chart.lock

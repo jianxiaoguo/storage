@@ -36,8 +36,10 @@ spec:
           - image: {{ .Values.imageRegistry }}/{{ .Values.imageOrg }}/storage:{{ .Values.imageTag }}
             imagePullPolicy: {{ .Values.imagePullPolicy }}
             name: drycc-storage-mainnode-weed-cronjob
-            command:
-            - init-stack
+            {{- if .Values.diagnosticMode.enabled }}
+            command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 14 }}
+            args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 14 }}
+            {{- else }}
             args:
             - /usr/bin/env
             - bash
@@ -49,6 +51,7 @@ spec:
               {{- (tpl .Values.mainnode.cron.scripts $) | nindent 14 -}}
               EOF
               echo -e "\n\\033[32m---> Audit cronjob run completed <---\\033[0m\n"
+            {{- end }}
             env:
             - name: TZ
               value: UTC
