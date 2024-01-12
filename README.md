@@ -47,6 +47,20 @@ The Drycc project requires that as much code as possible is unit tested, but the
 
 The [end-to-end tests](https://github.com/drycc/workflow-e2e) repository has our integration tests. Additionally, the core contributors and members of the community also regularly [dogfood](https://en.wikipedia.org/wiki/Eating_your_own_dog_food) the platform.
 
+## Upgrade
+
+Updating drycc storage csi daemonset will break processeses who implement fuse mount:
+newly created pods will not remount net device.
+
+For safe update set `node.updateStrategy.type: OnDelete` for manual update. Steps:
+
+* delete daemonset pods on the node where there is no drycc storage pv
+* cordon or taint node
+* evict or delete pods with drycc storage pv
+* delete daemonset pod on node
+* uncordon or remove taint on node
+* repeat all steps on [all nodes]
+
 ## Running End-to-End Tests
 
 Please see [README.md](https://github.com/drycc/workflow-e2e/blob/main/README.md) on the end-to-end tests reposotory for instructions on how to set up your testing environment and run the tests.
