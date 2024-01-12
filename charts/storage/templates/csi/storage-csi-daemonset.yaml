@@ -9,10 +9,9 @@ spec:
     matchLabels:
       component: drycc-storage
       app: drycc-storage-csi-node
-  updateStrategy:
-    rollingUpdate:
-      maxUnavailable: 25%
-    type: RollingUpdate
+  {{- if .Values.csi.daemonset.updateStrategy }}
+  updateStrategy: {{- toYaml .Values.csi.daemonset.updateStrategy | nindent 4 }}
+  {{- end }}
   template:
     metadata:
       labels:

@@ -24,6 +24,7 @@ csi:
   dataLocality: "none"
   storageClassName: drycc-storage
   daemonset:
+    updateStrategy: OnDelete
     registrarImage: registry.drycc.cc/k8s/sig-storage/csi-node-driver-registrar:v2.9.0
   statefulset:
     replicas: 1
