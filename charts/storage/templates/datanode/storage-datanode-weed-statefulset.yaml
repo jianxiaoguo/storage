@@ -47,8 +47,8 @@ spec:
         command: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.command "context" $) | nindent 10 }}
         args: {{- include "common.tplvalues.render" (dict "value" .Values.diagnosticMode.args "context" $) | nindent 10 }}
         {{- else }}
-        args:
-        - /usr/bin/env
+        command:
+        - init-stack
         - bash
         - -ec
         - |
