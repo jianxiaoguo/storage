@@ -46,6 +46,7 @@ spec:
         - -port=9333
         - -port.grpc=19333
         - -peers={{ include "mainnode.weedUrls" . }}
+        - -raftHashicorp
         - -metricsPort=9324
         - -garbageThreshold={{ .Values.mainnode.weed.garbageThreshold }}
         - -defaultReplication={{ .Values.mainnode.weed.defaultReplication }}

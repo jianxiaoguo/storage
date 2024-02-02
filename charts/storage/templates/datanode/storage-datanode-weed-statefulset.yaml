@@ -62,7 +62,7 @@ spec:
             -port=8080 \
             -port.grpc=18080 \
             -metricsPort=9325 \
-            -max=100 \
+            -max=0 \
             -rack=${RACK} \
             -dataCenter=${DATA_CENTER} \
             -mserver={{ include "mainnode.weedUrls" . }} \
