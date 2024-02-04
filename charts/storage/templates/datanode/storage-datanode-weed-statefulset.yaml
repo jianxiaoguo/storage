@@ -67,7 +67,8 @@ spec:
             -dataCenter=${DATA_CENTER} \
             -mserver={{ include "mainnode.weedUrls" . }} \
             -compactionMBps={{ .Values.datanode.weed.compactionMBps }} \
-            -dir=/data
+            -dir=/data \
+            -index=leveldb
         {{- end }}
         env:
         - name: TZ
