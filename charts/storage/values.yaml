@@ -93,11 +93,15 @@ mainnode:
     replicas: 3
     # threshold to vacuum and reclaim spaces
     garbageThreshold: 0.3
+    # Master stops directing writes to oversized volumes.
+    volumeSizeLimitMB: 30000
+    # Preallocate disk space for volumes.
+    volumePreallocate: false
     # Storage replication type is XYZ:
     # X number of replica in other data centers
     # Y number of replica in other racks in the same data center
     # Z number of replica in other servers in the same rack
-    defaultReplication: "001"
+    defaultReplication: "000"
     nodeAffinityPreset:
       key: "drycc.cc/node"
       type: "soft"

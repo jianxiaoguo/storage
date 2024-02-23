@@ -49,6 +49,10 @@ spec:
         - -raftHashicorp
         - -metricsPort=9324
         - -garbageThreshold={{ .Values.mainnode.weed.garbageThreshold }}
+        {{- if .Values.mainnode.weed.volumePreallocate }}
+        - -volumePreallocate
+        {{- end }}
+        - -volumeSizeLimitMB={{ .Values.mainnode.weed.volumeSizeLimitMB }}
         - -defaultReplication={{ .Values.mainnode.weed.defaultReplication }}
         {{- end }}
         env:
