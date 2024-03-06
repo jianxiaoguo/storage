@@ -14,8 +14,8 @@ data:
           "name": "drycc",
           "credentials": [
             {
-              "accessKey": "{{ include "storage.accesskey" . }}",
-              "secretKey": "{{ include "storage.secretkey" . }}"
+              "accessKey": "{{ include "common.secrets.lookup" (dict "secret" "storage-creds" "key" "accesskey" "defaultValue" (include "storage.accesskey" .) "context" $) | b64dec }}",
+              "secretKey": "{{ include "common.secrets.lookup" (dict "secret" "storage-creds" "key" "secretkey" "defaultValue" (include "storage.secretkey" .) "context" $) | b64dec }}"
             }
           ],
           "actions": ["Admin", "Read", "List", "Tagging", "Write"]
