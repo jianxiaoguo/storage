@@ -12,7 +12,7 @@ usage = """
 Valid commands for boot:
 
 controls tipd            run pd-ctl
-controls csi             run seaweedfs csi driver
+controls csi             run csi driver
 controls tikv            run tikv-ctl
 mainnode tipd            start pd-server for tikv
 mainnode weed            start seaweedfs master
@@ -45,7 +45,7 @@ def controls(subcommand, args):
     if subcommand == "tipd":
         exec("pd-ctl", args)
     elif subcommand == "csi":
-        exec("weed-csi", args)
+        exec("csi", args)
     elif subcommand == "tikv":
         exec("tikv-ctl", args)
     else:

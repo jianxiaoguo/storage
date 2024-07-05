@@ -79,14 +79,14 @@ spec:
         args :
         - controls
         - csi
+        - seaweedfs
         - --endpoint=unix:///csi/csi.sock
-        - --filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
-        - --nodeid=$(NODE_NAME)
-        - --driverName={{ .Values.csi.driverName }}
-        - --cacheDir=/var/cache/seaweedfs
-        - --dataLocality={{ .Values.csi.dataLocality }}
-        - --dataCenter=$(DATA_CENTER)
+        - --seaweedfs-filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        - --node-id=$(NODE_NAME)
+        - --driver-name={{ .Values.csi.driverName }}
         - --components=node
+        - --savepoint-db=/csi/savepoint.db
+        - --health-port=9808
         {{- end }}
         env:
         - name: NODE_NAME
@@ -101,6 +101,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.labels['topology.kubernetes.io/zone']
+        ports:
+        - containerPort: 9808
+          name: healthz
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          failureThreshold: 2
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
         securityContext:
           privileged: true
           capabilities:

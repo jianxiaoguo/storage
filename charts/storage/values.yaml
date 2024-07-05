@@ -21,11 +21,22 @@ diagnosticMode:
 # drycc storage csi driver
 csi:
   driverName: storage.drycc.cc
-  dataLocality: "none"
-  storageClassName: drycc-storage
+  storageClass:
+    name: drycc-storage
+    # Volume reclaim policy
+    reclaimPolicy: Delete
+    # Annotations for the storage class
+    # Example:
+    # annotations:
+    #   storageclass.kubernetes.io/is-default-class: "true"
+    annotations: {}
+    # storageClass parameters
+    parameters:
+      # Fuse mount options
+      options: "--chunkSizeLimitMB=10 --concurrentWriters=16"
   daemonset:
     updateStrategy:
-      type: OnDelete
+      type: RollingUpdate
     registrarImage: registry.drycc.cc/k8s/sig-storage/csi-node-driver-registrar:v2.9.0
   statefulset:
     replicas: 1

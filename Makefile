@@ -22,7 +22,7 @@ test-style:
 
 podman-build:
 	# build the main image
-	podman build --build-arg CODENAME=${CODENAME} -t ${IMAGE} .
+	podman build --build-arg CODENAME=${CODENAME} --build-arg LDFLAGS="-X main.version=${VERSION}" -t ${IMAGE} .
 	podman tag ${IMAGE} ${MUTABLE_IMAGE}
 
 deploy: build podman-build podman-push

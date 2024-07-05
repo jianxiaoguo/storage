@@ -133,12 +133,13 @@ spec:
         args:
         - controls
         - csi
+        - seaweedfs
         - --endpoint=unix:///var/lib/csi/sockets/pluginproxy/csi.sock
-        - --filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
-        - --nodeid=$(NODE_NAME)
-        - --driverName={{ .Values.csi.driverName }}
+        - --seaweedfs-filer=drycc-storage-metanode-weed.$(NAMESPACE).svc.{{ $clusterDomain }}:8888
+        - --node-id=$(NODE_NAME)
+        - --driver-name={{ .Values.csi.driverName }}
         - --components=controller
-        - --attacher=true
+        - --health-port=9808
         {{- end }}
         env:
         - name: NODE_NAME
@@ -149,6 +150,18 @@ spec:
           valueFrom:
             fieldRef:
               fieldPath: metadata.namespace
+        ports:
+        - containerPort: 9808
+          name: healthz
+          protocol: TCP
+        livenessProbe:
+          httpGet:
+            path: /healthz
+            port: healthz
+          failureThreshold: 2
+          initialDelaySeconds: 10
+          timeoutSeconds: 3
+          periodSeconds: 60
         volumeMounts:
         - name: socket-dir
           mountPath: /var/lib/csi/sockets/pluginproxy/
