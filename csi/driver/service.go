@@ -59,11 +59,7 @@ func (service *DriveService) initComponents(driver *CSIDriver) error {
 	for _, component := range strings.Split(service.driverInfo.Components, ",") {
 		switch component {
 		case "node":
-			savepoint, err := NewSavepoint(service.driverInfo.SavepointDB)
-			if err != nil {
-				return err
-			}
-			service.ns = &NodeServer{provider: service.provider, driver: driver, savepoint: savepoint}
+			service.ns = &NodeServer{provider: service.provider, driver: driver}
 		case "controller":
 			service.cs = &ControllerServer{provider: service.provider, driver: driver}
 		default:
@@ -87,12 +83,4 @@ func (service *DriveService) Serve() {
 	s.Start(service.driverInfo.Endpoint, service.ids, service.cs, service.ns)
 	service.startHealthz(service.driverInfo.HealthPort)
 	s.Wait()
-}
-
-func (service *DriveService) Restore() error {
-	return service.ns.savepoint.View(func(saveEntry *SaveEntry) {
-		if err := service.provider.NodeMountVolume(&saveEntry.Point, &saveEntry.Bucket); err != nil {
-			glog.Errorf("restore node mount error: %+v, %+v", saveEntry, err)
-		}
-	})
 }

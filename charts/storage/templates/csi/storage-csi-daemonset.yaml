@@ -85,7 +85,6 @@ spec:
         - --node-id=$(NODE_NAME)
         - --driver-name={{ .Values.csi.driverName }}
         - --components=node
-        - --savepoint-db=/csi/savepoint.db
         - --health-port=9808
         {{- end }}
         env:

@@ -35,22 +35,20 @@ const (
 
 var (
 	nodeCaps = []csi.NodeServiceCapability_RPC_Type{
-		csi.NodeServiceCapability_RPC_STAGE_UNSTAGE_VOLUME,
+		csi.NodeServiceCapability_RPC_EXPAND_VOLUME,
 	}
 )
 
 type NodeServer struct {
 	csi.UnimplementedNodeServer
-	provider  provider.Provider
-	driver    *CSIDriver
-	savepoint *Savepoint
+	provider provider.Provider
+	driver   *CSIDriver
 }
 
 func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublishVolumeRequest) (*csi.NodePublishVolumeResponse, error) {
 	glog.V(5).Infof("using NodePublishVolume: %#v, %#v", ctx, req)
 	volumeID := req.GetVolumeId()
 	targetPath := req.GetTargetPath()
-	stagingTargetPath := req.GetStagingTargetPath()
 	bucket, prefix := volumeIDToBucketPrefix(volumeID)
 
 	// Check arguments
@@ -59,9 +57,6 @@ func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	}
 	if len(volumeID) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-	if len(stagingTargetPath) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Staging Target path missing in request")
 	}
 	if len(targetPath) == 0 {
 		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
@@ -97,10 +92,6 @@ func (ns *NodeServer) NodePublishVolume(ctx context.Context, req *csi.NodePublis
 	if err := ns.provider.NodeMountVolume(mountPoint, mountBucket); err != nil {
 		return nil, err
 	}
-
-	if err := ns.savepoint.Save(targetPath, mountPoint, mountBucket); err != nil {
-		glog.Infof("save point error: %+v", err)
-	}
 	return &csi.NodePublishVolumeResponse{}, nil
 }
 
@@ -121,54 +112,7 @@ func (ns *NodeServer) NodeUnpublishVolume(ctx context.Context, req *csi.NodeUnpu
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	glog.V(4).Infof("Volume %s has been unmounted.", volumeID)
-	if err := ns.savepoint.Delete(targetPath); err != nil {
-		glog.Infof("delete point error: %+v", err)
-	}
 	return &csi.NodeUnpublishVolumeResponse{}, nil
-}
-
-func (ns *NodeServer) NodeStageVolume(ctx context.Context, req *csi.NodeStageVolumeRequest) (*csi.NodeStageVolumeResponse, error) {
-	glog.V(5).Infof("using NodeStageVolume: %#v, %#v", ctx, req)
-	volumeID := req.GetVolumeId()
-	stagingTargetPath := req.GetStagingTargetPath()
-
-	// Check arguments
-	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-
-	if len(stagingTargetPath) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
-	}
-
-	if req.VolumeCapability == nil {
-		return nil, status.Error(codes.InvalidArgument, "NodeStageVolume Volume Capability must be provided")
-	}
-
-	notMnt, err := ns.provider.NodeCheckMountVolume(stagingTargetPath)
-	if err != nil {
-		return nil, status.Error(codes.Internal, err.Error())
-	}
-	if !notMnt {
-		return &csi.NodeStageVolumeResponse{}, nil
-	}
-	return &csi.NodeStageVolumeResponse{}, nil
-}
-
-func (ns *NodeServer) NodeUnstageVolume(ctx context.Context, req *csi.NodeUnstageVolumeRequest) (*csi.NodeUnstageVolumeResponse, error) {
-	glog.V(5).Infof("using NodeUnstageVolume: %#v, %#v", ctx, req)
-	volumeID := req.GetVolumeId()
-	stagingTargetPath := req.GetStagingTargetPath()
-
-	// Check arguments
-	if len(volumeID) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Volume ID missing in request")
-	}
-	if len(stagingTargetPath) == 0 {
-		return nil, status.Error(codes.InvalidArgument, "Target path missing in request")
-	}
-
-	return &csi.NodeUnstageVolumeResponse{}, nil
 }
 
 // NodeGetCapabilities returns the supported capabilities of the node server
@@ -208,10 +152,4 @@ func (ns *NodeServer) NodeExpandVolume(ctx context.Context, req *csi.NodeExpandV
 		return nil, status.Error(codes.Internal, err.Error())
 	}
 	return &csi.NodeExpandVolumeResponse{}, nil
-}
-
-// NodeGetVolumeStats unimplemented
-func (ns *NodeServer) NodeGetVolumeStats(ctx context.Context, req *csi.NodeGetVolumeStatsRequest) (*csi.NodeGetVolumeStatsResponse, error) {
-	glog.V(5).Infof("using NodeGetVolumeStats: %#v, %#v", ctx, req)
-	return nil, status.Error(codes.Unimplemented, "")
 }

@@ -6,12 +6,10 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"strings"
 	"text/template"
 
 	"github.com/drycc/storage/csi/driver"
 	"github.com/drycc/storage/csi/provider"
-	"github.com/golang/glog"
 )
 
 var version = "v1.2.0"
@@ -66,29 +64,22 @@ func main() {
 	components := flag.String("components", "controller,node", "components to run, by default both controller and node")
 	driverName := flag.String("driver-name", "storage.drycc.cc", "name is the prefix of all objects in data storage")
 	healthPort := flag.Int("health-port", 9808, "bbolt db path for savepoint")
-	savepointDB := flag.String("savepoint-db", "/csi/savepoint.db", "bbolt db path for savepoint")
 	provider.SetFlags()
 	flag.Parse()
 	if *nodeID == "" {
 		log.Fatal("node-id is required")
 	}
 	driverInfo := &driver.DriverInfo{
-		NodeID:      *nodeID,
-		DriverName:  *driverName,
-		Endpoint:    *endpoint,
-		Components:  *components,
-		Version:     version,
-		SavepointDB: *savepointDB,
-		HealthPort:  *healthPort,
+		NodeID:     *nodeID,
+		DriverName: *driverName,
+		Endpoint:   *endpoint,
+		Components: *components,
+		Version:    version,
+		HealthPort: *healthPort,
 	}
 	driver, err := driver.New(driverInfo, provider)
 	if err != nil {
 		log.Fatal(err)
-	}
-	if strings.Contains(*components, "node") {
-		if err := driver.Restore(); err != nil {
-			glog.Errorf("node restore error: %v", err)
-		}
 	}
 	driver.Serve()
 	os.Exit(0)
