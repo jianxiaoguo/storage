@@ -10,7 +10,7 @@ metadata:
     component.drycc.cc/version: {{ .Values.imageTag }}
 spec:
   timeZone: "{{ .Values.mainnode.cron.timeZone }}"
-  schedule: "{{ .Values.mainnode.cron.schedule }}"
+  schedule: "{{ tpl .Values.mainnode.cron.schedule $ }}"
   concurrencyPolicy: "{{ .Values.mainnode.cron.concurrencyPolicy }}"
   successfulJobsHistoryLimit: {{ .Values.mainnode.cron.successfulJobsHistoryLimit }}
   failedJobsHistoryLimit: {{ .Values.mainnode.cron.failedJobsHistoryLimit }}
