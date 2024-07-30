@@ -76,7 +76,10 @@ func (provider *BaseProvider) NodeUmountVolume(path string) error {
 		return nil
 	}
 	glog.Infof("found fuse pid %v of mount %s, checking if it still runs", process.Pid, path)
-	return provider.waitForProcess(process, 20)
+	if err := provider.waitForProcess(process, 20); err != nil {
+		return process.Kill()
+	}
+	return nil
 }
 
 func (provider *BaseProvider) NodeWaitMountVolume(path string, timeout time.Duration) error {
