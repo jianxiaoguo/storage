@@ -54,7 +54,6 @@ csi:
       extraMatchLabels:
         app: "drycc-storage-csi-controller"
     resizerImage: registry.drycc.cc/k8s/sig-storage/csi-resizer:v1.11.1
-    attacherImage: registry.drycc.cc/k8s/sig-storage/csi-attacher:v4.6.1
     provisionerImage: registry.drycc.cc/k8s/sig-storage/csi-provisioner:v5.0.1
     livenessProbeImage: registry.drycc.cc/k8s/sig-storage/livenessprobe:v2.13.0
   volumes:
